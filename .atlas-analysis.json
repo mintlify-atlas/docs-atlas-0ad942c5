@@ -1,0 +1,209 @@
+{
+  "projectType": "saas",
+  "projectName": "SkillRise",
+  "projectDescription": "A full-stack e-learning platform with AI-powered features, built for students and educators.",
+  "theme": "almond",
+  "primaryColor": "#30af9f",
+  "lightColor": "#24605c",
+  "darkColor": "#161719",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "introduction",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Getting Started",
+            "pages": [
+              "getting-started/installation",
+              "getting-started/configuration",
+              "getting-started/docker-setup",
+              "getting-started/seeding-data"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/authentication",
+              "features/course-management",
+              "features/payment-system",
+              "features/ai-features",
+              "features/analytics",
+              "features/community"
+            ]
+          },
+          {
+            "group": "For Students",
+            "pages": [
+              "students/browsing-courses",
+              "students/enrolling-courses",
+              "students/learning-experience",
+              "students/ai-assistant",
+              "students/progress-tracking"
+            ]
+          },
+          {
+            "group": "For Educators",
+            "pages": [
+              "educators/becoming-educator",
+              "educators/creating-courses",
+              "educators/managing-content",
+              "educators/dashboard",
+              "educators/student-management"
+            ]
+          },
+          {
+            "group": "For Admins",
+            "pages": [
+              "admins/dashboard",
+              "admins/user-management",
+              "admins/course-management",
+              "admins/purchase-management",
+              "admins/educator-applications"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/clerk",
+              "integrations/stripe",
+              "integrations/cloudinary",
+              "integrations/groq-ai",
+              "integrations/webhooks"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker",
+              "deployment/ci-cd",
+              "deployment/environment-variables"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/project-structure",
+              "development/contributing",
+              "development/testing"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview",
+              "api/authentication"
+            ]
+          },
+          {
+            "group": "Course API",
+            "pages": [
+              "api/courses/list-courses",
+              "api/courses/get-course"
+            ]
+          },
+          {
+            "group": "User API",
+            "pages": [
+              "api/user/get-user-data",
+              "api/user/enrolled-courses",
+              "api/user/purchase-course",
+              "api/user/course-progress",
+              "api/user/analytics"
+            ]
+          },
+          {
+            "group": "AI Features API",
+            "pages": [
+              "api/ai/chatbot",
+              "api/ai/roadmap",
+              "api/ai/chat-sessions"
+            ]
+          },
+          {
+            "group": "Quiz API",
+            "pages": [
+              "api/quiz/generate-quiz",
+              "api/quiz/submit-result"
+            ]
+          },
+          {
+            "group": "Community API",
+            "pages": [
+              "api/community/groups",
+              "api/community/posts",
+              "api/community/replies"
+            ]
+          },
+          {
+            "group": "Educator API",
+            "pages": [
+              "api/educator/apply",
+              "api/educator/create-course",
+              "api/educator/dashboard",
+              "api/educator/enrolled-students"
+            ]
+          },
+          {
+            "group": "Admin API",
+            "pages": [
+              "api/admin/stats",
+              "api/admin/courses",
+              "api/admin/users",
+              "api/admin/purchases",
+              "api/admin/applications"
+            ]
+          },
+          {
+            "group": "Webhooks",
+            "pages": [
+              "api/webhooks/clerk",
+              "api/webhooks/stripe"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Course catalog with search and filtering",
+    "Stripe payment integration for course purchases",
+    "AI-powered chatbot for learning support",
+    "Personalized learning roadmap generation",
+    "Auto-generated quizzes with explanations",
+    "Progress tracking and analytics dashboard",
+    "Community groups with discussion posts",
+    "Multi-role system (students, educators, admins)",
+    "Course builder with rich content editor",
+    "Real-time enrollment and revenue stats"
+  ],
+  "publicApiSurface": [
+    "GET /api/course/all - List all published courses",
+    "GET /api/course/:id - Get course details by ID",
+    "POST /api/user/purchase - Purchase a course",
+    "POST /api/user/update-course-progress - Update learning progress",
+    "GET /api/user/enrolled-courses - Get user's enrolled courses",
+    "POST /api/user/ai-chat - Chat with AI assistant",
+    "POST /api/user/generate-personal-roadmap - Generate learning roadmap",
+    "POST /api/quiz/generate - Generate chapter quiz",
+    "GET /api/community/groups - List community groups",
+    "POST /api/community/posts - Create discussion post",
+    "POST /api/educator/add-course - Create new course (educators)",
+    "GET /api/educator/dashboard - Get educator stats",
+    "GET /api/admin/stats - Get platform-wide statistics (admins)",
+    "PATCH /api/admin/educator-applications/:id/approve - Approve educator application",
+    "POST /clerk - Clerk user sync webhook",
+    "POST /stripe - Stripe payment webhook"
+  ]
+}
