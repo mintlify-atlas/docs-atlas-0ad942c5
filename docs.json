@@ -137,7 +137,9 @@
               "api/user/enrolled-courses",
               "api/user/purchase-course",
               "api/user/course-progress",
-              "api/user/analytics"
+              "api/user/analytics",
+              "api/user/certificate",
+              "api/user/add-rating"
             ]
           },
           {

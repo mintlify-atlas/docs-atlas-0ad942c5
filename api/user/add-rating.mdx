@@ -1,0 +1,201 @@
+---
+title: "Add Course Rating"
+api: "POST /api/user/add-rating"
+description: "Submit a rating and review for a completed course"
+---
+
+## Overview
+
+Allows students to rate a course they have completed. Ratings are stored with the user's enrollment record and displayed on course detail pages.
+
+## Authentication
+
+Requires Clerk authentication. The user must be enrolled in the course.
+
+## Request Body
+
+<ParamField body="courseId" type="string" required>
+  The MongoDB ObjectId of the course to rate
+</ParamField>
+
+<ParamField body="rating" type="number" required>
+  Rating value between 1-5 stars
+  
+  Must be an integer: 1, 2, 3, 4, or 5
+</ParamField>
+
+<ParamField body="review" type="string">
+  Optional text review/comment about the course
+  
+  Maximum length: 500 characters
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the rating was saved successfully
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Confirmation message
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  The updated course rating information
+  
+  <Expandable title="data">
+    <ResponseField name="courseId" type="string">
+      The course that was rated
+    </ResponseField>
+    
+    <ResponseField name="rating" type="number">
+      The submitted rating (1-5)
+    </ResponseField>
+    
+    <ResponseField name="review" type="string">
+      The submitted review text
+    </ResponseField>
+    
+    <ResponseField name="averageRating" type="number">
+      Updated average rating for the course
+    </ResponseField>
+    
+    <ResponseField name="totalRatings" type="number">
+      Total number of ratings the course has received
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Request Example
+
+```json
+{
+  "courseId": "65f3a1b2c3d4e5f6g7h8i9j0",
+  "rating": 5,
+  "review": "Excellent course! The instructor explained complex concepts clearly and the hands-on projects were very helpful."
+}
+```
+
+## Response Example
+
+```json
+{
+  "success": true,
+  "message": "Rating submitted successfully",
+  "data": {
+    "courseId": "65f3a1b2c3d4e5f6g7h8i9j0",
+    "rating": 5,
+    "review": "Excellent course! The instructor explained...",
+    "averageRating": 4.7,
+    "totalRatings": 128
+  }
+}
+```
+
+## Error Responses
+
+<ResponseField name="400 Bad Request">
+  - Missing required fields
+  - Invalid rating value (not 1-5)
+  - Review text exceeds 500 characters
+</ResponseField>
+
+<ResponseField name="404 Not Found">
+  - User is not enrolled in the course
+  - Course does not exist
+</ResponseField>
+
+<ResponseField name="403 Forbidden">
+  - User has not completed the course yet
+  - Ratings may be restricted to completed courses only
+</ResponseField>
+
+## Implementation Details
+
+### Rating Storage
+
+Ratings are stored in the `User` model's `courseRatings` array:
+
+```javascript
+courseRatings: [
+  {
+    courseId: ObjectId,
+    rating: Number,      // 1-5
+    review: String,
+    createdAt: Date
+  }
+]
+```
+
+### Rating Update Rules
+
+- Users can update their rating for a course by submitting again
+- The most recent rating replaces any previous rating
+- Average rating is recalculated for the course after each submission
+
+## Code Examples
+
+<CodeGroup>
+
+```javascript JavaScript (Fetch)
+const response = await fetch(`${BACKEND_URL}/api/user/add-rating`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${clerkToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    courseId: '65f3a1b2c3d4e5f6g7h8i9j0',
+    rating: 5,
+    review: 'Great course with excellent content!'
+  })
+});
+
+const data = await response.json();
+console.log(`Average rating: ${data.data.averageRating}`);
+```
+
+```bash cURL
+curl -X POST "https://api.skillrise.com/api/user/add-rating" \
+  -H "Authorization: Bearer YOUR_CLERK_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "courseId": "65f3a1b2c3d4e5f6g7h8i9j0",
+    "rating": 5,
+    "review": "Excellent course with clear explanations!"
+  }'
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    f"{BACKEND_URL}/api/user/add-rating",
+    headers={
+        "Authorization": f"Bearer {clerk_token}",
+        "Content-Type": "application/json"
+    },
+    json={
+        "courseId": "65f3a1b2c3d4e5f6g7h8i9j0",
+        "rating": 5,
+        "review": "Great learning experience!"
+    }
+)
+
+data = response.json()
+print(f"Course now has {data['data']['totalRatings']} ratings")
+```
+
+</CodeGroup>
+
+## Use Cases
+
+1. **Collect student feedback** on course quality
+2. **Display ratings on course pages** to help prospective students
+3. **Calculate average ratings** to rank courses
+4. **Identify top-rated courses** for marketing purposes
+
+## Related Endpoints
+
+- [Get Course](/api/courses/get-course) - View course with ratings
+- [Get Enrolled Courses](/api/user/enrolled-courses) - See which courses you can rate

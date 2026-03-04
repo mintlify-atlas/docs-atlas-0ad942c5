@@ -1,0 +1,141 @@
+---
+title: "Get Certificate"
+api: "GET /api/user/certificate/:courseId"
+description: "Retrieve a course completion certificate"
+---
+
+## Overview
+
+Generates and returns a PDF certificate for a completed course. The certificate includes the student's name, course title, completion date, and a unique certificate ID.
+
+<Info>
+  Certificates are automatically generated when a user completes 100% of a course's lectures.
+</Info>
+
+## Authentication
+
+Requires Clerk authentication. The user must be enrolled in the course and have completed all lectures.
+
+## Path Parameters
+
+<ParamField path="courseId" type="string" required>
+  The MongoDB ObjectId of the course
+</ParamField>
+
+## Response
+
+Returns a PDF certificate file with appropriate headers.
+
+### Success Response (200)
+
+```
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="SkillRise_Certificate_[CourseTitle].pdf"
+```
+
+The response body contains the PDF binary data.
+
+### Certificate Contents
+
+The generated certificate includes:
+
+<ResponseField name="Student Name" type="string">
+  The authenticated user's full name from Clerk
+</ResponseField>
+
+<ResponseField name="Course Title" type="string">
+  The completed course title
+</ResponseField>
+
+<ResponseField name="Completion Date" type="date">
+  The date when the course was completed (last lecture marked as completed)
+</ResponseField>
+
+<ResponseField name="Certificate ID" type="string">
+  A unique identifier stored in the database for verification
+</ResponseField>
+
+<ResponseField name="Certificate Verification Link" type="string">
+  A URL that can be used to verify the certificate's authenticity
+</ResponseField>
+
+## Error Responses
+
+<ResponseField name="404 Not Found">
+  - User is not enrolled in the course
+  - Course does not exist
+  - User has not completed the course
+</ResponseField>
+
+<ResponseField name="500 Internal Server Error">
+  Error generating the PDF certificate
+</ResponseField>
+
+## Implementation Details
+
+### Certificate Generation Process
+
+1. **Verify enrollment**: Check that the user is enrolled in the course
+2. **Check completion**: Verify that all lectures are marked as completed
+3. **Retrieve certificate record**: Look up the Certificate model entry
+4. **Generate PDF**: Use Puppeteer to render HTML template as PDF
+5. **Return file**: Stream the PDF to the client
+
+### Database Model
+
+Certificates are stored in the `Certificate` collection:
+
+```javascript
+{
+  userId: String,          // Clerk user ID
+  courseId: ObjectId,      // Reference to Course
+  certificateId: String,   // Unique verification ID
+  issuedDate: Date,        // Completion date
+  userName: String,        // Student name
+  courseName: String       // Course title
+}
+```
+
+## Code Examples
+
+<CodeGroup>
+
+```javascript JavaScript (Fetch)
+const response = await fetch(
+  `${BACKEND_URL}/api/user/certificate/${courseId}`,
+  {
+    headers: {
+      'Authorization': `Bearer ${clerkToken}`
+    }
+  }
+);
+
+if (response.ok) {
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `SkillRise_Certificate_${courseTitle}.pdf`;
+  a.click();
+}
+```
+
+```bash cURL
+curl -X GET "https://api.skillrise.com/api/user/certificate/65f3a1b2c3d4e5f6g7h8i9j0" \
+  -H "Authorization: Bearer YOUR_CLERK_TOKEN" \
+  --output certificate.pdf
+```
+
+</CodeGroup>
+
+## Use Cases
+
+1. **Student downloads certificate** after completing a course
+2. **Share on LinkedIn** by uploading the generated PDF
+3. **Verify certificate authenticity** using the certificate ID
+4. **Track student achievements** via the Certificate collection
+
+## Related Endpoints
+
+- [Update Course Progress](/api/user/course-progress) - Mark lectures as completed
+- [Get Enrolled Courses](/api/user/enrolled-courses) - Check course completion status
