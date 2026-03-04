@@ -1,0 +1,397 @@
+---
+title: 'Clerk Authentication'
+description: 'Set up Clerk authentication with role-based access control and webhook sync'
+icon: 'shield-halved'
+---
+
+## Overview
+
+SkillRise uses [Clerk](https://clerk.com) for authentication and user management. Clerk handles user sign-up, sign-in, profile management, and session management. User data is synced to your MongoDB database via webhooks.
+
+## Features
+
+- **Authentication**: Email/password, OAuth (Google, GitHub, etc.)
+- **Role-based access control**: Student, Educator, Admin roles
+- **Webhook sync**: Automatic user sync to MongoDB
+- **Session management**: Secure JWT-based sessions
+- **Profile management**: User profile updates synced automatically
+
+## Environment Variables
+
+### Server Configuration
+
+Add these to your `server/.env` file:
+
+```env server/.env
+CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+CLERK_WEBHOOK_SECRET=whsec_...
+```
+
+### Client Configuration
+
+Add this to your `client/.env` file:
+
+```env client/.env
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+```
+
+<Note>
+Get your keys from the [Clerk Dashboard](https://dashboard.clerk.com). Create a new application if you haven't already.
+</Note>
+
+## Setup Instructions
+
+<Steps>
+  <Step title="Create Clerk Application">
+    1. Go to [Clerk Dashboard](https://dashboard.clerk.com)
+    2. Click **Add application**
+    3. Name your application (e.g., "SkillRise")
+    4. Choose authentication methods (Email, Google, GitHub, etc.)
+    5. Click **Create application**
+  </Step>
+
+  <Step title="Configure API Keys">
+    1. From the Clerk Dashboard, navigate to **API Keys**
+    2. Copy the **Publishable Key** and **Secret Key**
+    3. Add them to your `.env` files (server and client)
+  </Step>
+
+  <Step title="Set Up Custom Metadata">
+    Clerk stores user roles in session claims metadata. Configure this in your Clerk Dashboard:
+
+    1. Go to **Sessions** → **Customize session token**
+    2. Add this JSON to include role metadata:
+
+    ```json
+    {
+      "metadata": "{{user.public_metadata}}"
+    }
+    ```
+
+    This allows the server to access `req.auth.sessionClaims.metadata.role`.
+  </Step>
+
+  <Step title="Configure Webhooks">
+    Clerk webhooks sync user data to your MongoDB database.
+
+    1. Go to **Webhooks** in Clerk Dashboard
+    2. Click **Add Endpoint**
+    3. Enter your webhook URL:
+       - Development: Use [ngrok](https://ngrok.com) → `https://your-ngrok-url.ngrok.io/clerk`
+       - Production: `https://your-domain.com/clerk`
+    4. Subscribe to these events:
+       - `user.created`
+       - `user.updated`
+       - `user.deleted`
+    5. Copy the **Signing Secret** and add it to `server/.env` as `CLERK_WEBHOOK_SECRET`
+  </Step>
+</Steps>
+
+## Role-Based Access Control
+
+SkillRise implements three user roles:
+
+| Role | Access | Assigned By |
+|------|--------|-------------|
+| **student** | Browse courses, enroll, watch videos, use AI features | Default for new users |
+| **educator** | Create courses, view analytics, manage students | Admin approval |
+| **admin** | Platform-wide management, approve educators | Manual assignment |
+
+### Setting User Roles
+
+Roles are stored in Clerk's `publicMetadata`. You can set roles:
+
+**Via Clerk Dashboard:**
+1. Go to **Users**
+2. Select a user
+3. Scroll to **Metadata** → **Public metadata**
+4. Add:
+   ```json
+   {
+     "role": "educator"
+   }
+   ```
+
+**Programmatically (from your admin panel):**
+```javascript
+import { clerkClient } from '@clerk/express'
+
+await clerkClient.users.updateUserMetadata(userId, {
+  publicMetadata: { role: 'educator' }
+})
+```
+
+### Protecting Routes
+
+SkillRise uses middleware to protect routes by role:
+
+```javascript server/middlewares/authMiddleware.js
+export const protectEducator = (req, res, next) => {
+  if (!req.auth?.userId) {
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Unauthorized Access' 
+    })
+  }
+
+  const role = req.auth.sessionClaims?.metadata?.role
+
+  if (role !== 'educator') {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Unauthorized Access' 
+    })
+  }
+
+  next()
+}
+
+export const protectAdmin = (req, res, next) => {
+  if (!req.auth?.userId) {
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Unauthorized Access' 
+    })
+  }
+
+  const role = req.auth.sessionClaims?.metadata?.role
+
+  if (role !== 'admin') {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Unauthorized Access' 
+    })
+  }
+
+  next()
+}
+```
+
+**Usage in routes:**
+```javascript server/routes/educatorRoutes.js
+import { protectEducator } from '../middlewares/authMiddleware.js'
+
+router.post('/courses', protectEducator, createCourse)
+router.get('/dashboard', protectEducator, getDashboard)
+```
+
+## Webhook Implementation
+
+The Clerk webhook endpoint syncs user data to MongoDB:
+
+```javascript server/controllers/webhooks.js
+import { Webhook } from 'svix'
+import User from '../models/User.js'
+
+export const clerkWebhooks = async (req, res) => {
+  try {
+    const webhook = new Webhook(process.env.CLERK_WEBHOOK_SECRET)
+
+    // Verify webhook signature
+    await webhook.verify(JSON.stringify(req.body), {
+      'svix-id': req.headers['svix-id'],
+      'svix-timestamp': req.headers['svix-timestamp'],
+      'svix-signature': req.headers['svix-signature'],
+    })
+
+    const { data, type } = req.body
+
+    switch (type) {
+      case 'user.created': {
+        const userData = {
+          _id: data.id,
+          email: data.email_addresses[0].email_address,
+          name: data.first_name + ' ' + data.last_name,
+          imageUrl: data.image_url,
+        }
+        await User.create(userData)
+        res.json({})
+        break
+      }
+
+      case 'user.updated': {
+        const userData = {
+          email: data.email_addresses[0].email_address,
+          name: data.first_name + ' ' + data.last_name,
+          imageUrl: data.image_url,
+        }
+        await User.findByIdAndUpdate(data.id, userData)
+        res.json({})
+        break
+      }
+
+      case 'user.deleted': {
+        await User.findByIdAndDelete(data.id)
+        res.json({})
+        break
+      }
+
+      default:
+        res.json({})
+    }
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ 
+      success: false, 
+      message: 'An unexpected error occurred' 
+    })
+  }
+}
+```
+
+**Register the webhook route:**
+```javascript server/server.js
+import { clerkWebhooks } from './controllers/webhooks.js'
+
+app.post('/clerk', clerkWebhooks)
+```
+
+<Warning>
+The webhook endpoint must be registered **before** `express.json()` middleware for Razorpay webhooks, but Clerk webhooks work with parsed JSON.
+</Warning>
+
+## Server Middleware Setup
+
+Initialize Clerk middleware in your Express app:
+
+```javascript server/server.js
+import { clerkMiddleware } from '@clerk/express'
+
+// Apply Clerk middleware globally
+app.use(clerkMiddleware())
+```
+
+This middleware:
+- Validates session tokens
+- Attaches `req.auth` with user info
+- Makes `req.auth.userId` and `req.auth.sessionClaims` available
+
+## Client Integration
+
+### Wrap Your App
+
+```jsx client/src/main.jsx
+import { ClerkProvider } from '@clerk/clerk-react'
+
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+    <App />
+  </ClerkProvider>
+)
+```
+
+### Access User Data
+
+```jsx
+import { useUser } from '@clerk/clerk-react'
+
+function Profile() {
+  const { user, isLoaded } = useUser()
+
+  if (!isLoaded) return <div>Loading...</div>
+
+  return (
+    <div>
+      <h1>Welcome, {user.fullName}!</h1>
+      <p>Email: {user.primaryEmailAddress.emailAddress}</p>
+      <p>Role: {user.publicMetadata.role || 'student'}</p>
+    </div>
+  )
+}
+```
+
+### Protect Routes
+
+```jsx
+import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react'
+
+function ProtectedPage() {
+  return (
+    <>
+      <SignedIn>
+        <h1>Protected Content</h1>
+      </SignedIn>
+      <SignedOut>
+        <RedirectToSignIn />
+      </SignedOut>
+    </>
+  )
+}
+```
+
+## Testing Webhooks Locally
+
+<Steps>
+  <Step title="Install ngrok">
+    ```bash
+    npm install -g ngrok
+    ```
+  </Step>
+
+  <Step title="Start your server">
+    ```bash
+    cd server
+    npm run server
+    ```
+  </Step>
+
+  <Step title="Expose localhost with ngrok">
+    ```bash
+    ngrok http 3000
+    ```
+    Copy the HTTPS URL (e.g., `https://abc123.ngrok.io`)
+  </Step>
+
+  <Step title="Update Clerk webhook URL">
+    In Clerk Dashboard → Webhooks → Edit your endpoint:
+    ```
+    https://abc123.ngrok.io/clerk
+    ```
+  </Step>
+
+  <Step title="Test webhook">
+    Create a new user in Clerk Dashboard or sign up via your app. Check your server logs and MongoDB to verify the user was created.
+  </Step>
+</Steps>
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Webhook signature verification fails">
+    - Ensure `CLERK_WEBHOOK_SECRET` matches the signing secret in Clerk Dashboard
+    - Verify you're using the correct webhook endpoint URL
+    - Check that headers `svix-id`, `svix-timestamp`, and `svix-signature` are being sent
+  </Accordion>
+
+  <Accordion title="Role not accessible in routes">
+    - Verify you've customized the session token in Clerk Dashboard (Sessions → Customize session token)
+    - Ensure the role is set in `publicMetadata`, not `privateMetadata`
+    - Check that `clerkMiddleware()` is applied before your routes
+  </Accordion>
+
+  <Accordion title="User not syncing to MongoDB">
+    - Check your webhook is subscribed to `user.created`, `user.updated`, `user.deleted` events
+    - Verify your MongoDB connection is active
+    - Check server logs for webhook errors
+  </Accordion>
+</AccordionGroup>
+
+## Resources
+
+<CardGroup cols={2}>
+  <Card title="Clerk Documentation" icon="book" href="https://clerk.com/docs">
+    Official Clerk documentation
+  </Card>
+  <Card title="Express SDK" icon="node" href="https://clerk.com/docs/references/express/overview">
+    Clerk Express SDK reference
+  </Card>
+  <Card title="React SDK" icon="react" href="https://clerk.com/docs/references/react/overview">
+    Clerk React SDK reference
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="https://clerk.com/docs/integrations/webhooks">
+    Webhook integration guide
+  </Card>
+</CardGroup>

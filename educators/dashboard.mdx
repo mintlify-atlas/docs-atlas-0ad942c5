@@ -1,0 +1,701 @@
+---
+title: Educator Dashboard
+description: Analytics, revenue tracking, and enrollment insights
+---
+
+## Overview
+
+The Educator Dashboard provides a comprehensive view of your teaching performance, revenue, and student engagement. Access it at `/educator/dashboard`.
+
+## Dashboard Layout
+
+The dashboard is organized into three main sections:
+
+<Steps>
+  <Step title="Stat Cards">
+    High-level metrics showing total enrollments, courses, and earnings
+  </Step>
+  <Step title="Latest Enrollments">
+    Table of recent student registrations across all courses
+  </Step>
+  <Step title="Quiz Insights">
+    Student performance data on chapter quizzes (if available)
+  </Step>
+</Steps>
+
+## Key Metrics
+
+### Stat Cards Overview
+
+Three primary metrics are displayed at the top:
+
+<CardGroup cols={3}>
+  <Card title="Total Enrollments" icon="users" color="#14b8a6">
+    Count of all students enrolled across all your courses
+  </Card>
+  <Card title="Published Courses" icon="book-open" color="#6366f1">
+    Number of courses you've created and published
+  </Card>
+  <Card title="Total Earnings" icon="indian-rupee-sign" color="#f59e0b">
+    Cumulative revenue from all completed course purchases (₹)
+  </Card>
+</CardGroup>
+
+### Data Fetching
+
+Metrics are fetched from the backend:
+
+```javascript
+const fetchDashboardData = async () => {
+  try {
+    const token = await getToken()
+    const { data } = await axios.get(
+      backendUrl + '/api/educator/dashboard',
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    )
+    if (data.success) {
+      setDashboardData(data.dashboardData)
+    }
+  } catch (error) {
+    toast.error(error.message)
+  }
+}
+```
+
+### Backend Calculation
+
+The server calculates these metrics:
+
+```javascript
+// Get all educator's courses
+const courses = await Course.find({ educatorId })
+const totalCourses = courses.length
+
+// Get course IDs
+const courseIds = courses.map((course) => course._id)
+
+// Calculate total earnings from completed purchases
+const purchases = await Purchase.find({
+  courseId: { $in: courseIds },
+  status: 'completed'
+})
+
+const totalEarnings = purchases.reduce(
+  (sum, purchase) => sum + purchase.amount,
+  0
+)
+
+// Collect enrolled students with course info
+const allStudentIds = courses.flatMap(
+  (course) => course.enrolledStudents
+)
+const allStudents = await User.find(
+  { _id: { $in: allStudentIds } },
+  'name imageUrl'
+)
+
+// Map students to their courses
+const enrolledStudentsData = courses.flatMap((course) =>
+  course.enrolledStudents
+    .map((studentId) => studentMap[studentId.toString()])
+    .filter(Boolean)
+    .map((student) => ({
+      courseTitle: course.courseTitle,
+      student
+    }))
+)
+```
+
+<Info>
+Only **completed** purchases count toward earnings. Pending or failed transactions are excluded.
+</Info>
+
+## Total Enrollments
+
+### What It Shows
+
+The total number of unique student enrollments across all your courses.
+
+<Tabs>
+  <Tab title="Calculation">
+    ```javascript
+    const totalEnrollments = dashboardData.enrolledStudentsData.length
+    ```
+    
+    This counts all enrollment records, where each student-course pair is one enrollment.
+  </Tab>
+  <Tab title="Example">
+    If you have:
+    - Course A: 50 students
+    - Course B: 30 students
+    - Course C: 20 students
+    
+    Total Enrollments = **100**
+    
+    (Even if the same student enrolled in multiple courses, each enrollment is counted separately)
+  </Tab>
+</Tabs>
+
+### Display Component
+
+```jsx
+<StatCard
+  iconBg="bg-teal-50"
+  iconColor="text-teal-600"
+  icon={<UsersIcon />}
+  label="Total Enrollments"
+  value={dashboardData.enrolledStudentsData.length}
+/>
+```
+
+## Published Courses
+
+### What It Shows
+
+The count of courses you've created, regardless of enrollment status.
+
+```javascript
+const totalCourses = courses.length
+
+// All courses where educatorId matches your user ID
+const courses = await Course.find({ educatorId })
+```
+
+<Note>
+This includes courses with zero enrollments. To see detailed course info, visit the "My Courses" page.
+</Note>
+
+## Total Earnings
+
+### Revenue Calculation
+
+Earnings are calculated from completed purchases only:
+
+```javascript
+// Backend calculation
+const purchases = await Purchase.find({
+  courseId: { $in: courseIds },
+  status: 'completed' // ✓ Only completed
+})
+
+const totalEarnings = purchases.reduce(
+  (sum, purchase) => sum + purchase.amount,
+  0
+)
+```
+
+### Purchase Model
+
+```javascript
+const Purchase = {
+  userId: String,        // Student who purchased
+  courseId: ObjectId,    // Course purchased
+  amount: Number,        // Actual price paid (after discount)
+  status: String,        // 'completed', 'pending', 'failed'
+  createdAt: Date        // Purchase timestamp
+}
+```
+
+### Price Calculation per Purchase
+
+```javascript
+// The amount stored is the final price after discount
+const coursePrice = 4999
+const discount = 20
+const finalPrice = Math.floor(
+  coursePrice - (discount * coursePrice / 100)
+)
+// finalPrice = 3999 (this is what gets stored in Purchase.amount)
+```
+
+### Display Format
+
+```jsx
+<StatCard
+  iconBg="bg-amber-50"
+  iconColor="text-amber-600"
+  icon={<RupeeIcon />}
+  label="Total Earnings"
+  value={`₹${dashboardData.totalEarnings.toLocaleString()}`}
+/>
+
+// Example output: ₹1,23,456
+```
+
+<Success>
+Earnings are displayed in Indian Rupee format with proper thousand separators.
+</Success>
+
+## Latest Enrollments Table
+
+A detailed view of student enrollments across all courses:
+
+### Table Structure
+
+<ResponseField name="enrolledStudentsData" type="array">
+  Array of enrollment objects
+  
+  <Expandable title="Enrollment Object">
+    <ResponseField name="student" type="object">
+      Student information
+      <Expandable title="properties">
+        <ResponseField name="name" type="string">
+          Student's full name
+        </ResponseField>
+        <ResponseField name="imageUrl" type="string">
+          Profile picture URL from Clerk auth
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="courseTitle" type="string">
+      Name of the course the student enrolled in
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Table Columns
+
+| Column | Description | Responsive |
+|--------|-------------|------------|
+| # | Sequential number (1, 2, 3...) | Hidden on mobile |
+| Student | Name and profile picture | Always visible |
+| Course | Course title (truncated if long) | Always visible |
+
+### Implementation
+
+```jsx
+<table className="w-full">
+  <thead>
+    <tr>
+      <th className="hidden sm:table-cell">#</th>
+      <th>Student</th>
+      <th>Course</th>
+    </tr>
+  </thead>
+  <tbody>
+    {dashboardData.enrolledStudentsData.map((item, index) => (
+      <tr key={index}>
+        <td className="hidden sm:table-cell">
+          {index + 1}
+        </td>
+        <td>
+          <div className="flex items-center gap-3">
+            <img
+              src={item.student.imageUrl}
+              alt=""
+              className="w-8 h-8 rounded-full"
+            />
+            <span>{item.student.name}</span>
+          </div>
+        </td>
+        <td className="max-w-xs truncate">
+          {item.courseTitle}
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+```
+
+### Empty State
+
+When no students have enrolled:
+
+```jsx
+{dashboardData.enrolledStudentsData.length === 0 && (
+  <div className="py-14 text-center">
+    <p className="text-gray-400 text-sm">No enrollments yet</p>
+  </div>
+)}
+```
+
+## Quiz Insights
+
+<Note>
+Quiz insights only appear if you've added quizzes to your course chapters and students have taken them.
+</Note>
+
+### What It Shows
+
+Student performance data across chapter quizzes:
+
+- Average score percentage
+- Number of quiz attempts
+- Performance distribution (Needs Review, On Track, Mastered)
+
+### Data Fetching
+
+```javascript
+const fetchQuizInsights = async () => {
+  try {
+    const token = await getToken()
+    const { data } = await axios.get(
+      backendUrl + '/api/quiz/educator-insights',
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    )
+    if (data.success) {
+      setQuizInsights(data.insights)
+    }
+  } catch {
+    // Non-critical, fail silently
+  }
+}
+```
+
+### Insight Structure
+
+```javascript
+const insight = {
+  courseTitle: "React Fundamentals",
+  chapterTitle: "State Management",
+  attempts: 25,           // Total quiz attempts
+  avgPct: 78,            // Average score percentage
+  needs_review: 3,       // Students scoring < 60%
+  on_track: 12,          // Students scoring 60-85%
+  mastered: 10           // Students scoring > 85%
+}
+```
+
+### Performance Categories
+
+<Tabs>
+  <Tab title="Needs Review">
+    <Warning>Students struggling with the material</Warning>
+    
+    - Score: **Below 60%**
+    - Color: Red
+    - Action: Consider reviewing this chapter content
+    - May need additional resources or clarification
+  </Tab>
+  
+  <Tab title="On Track">
+    <Info>Students progressing normally</Info>
+    
+    - Score: **60% to 85%**
+    - Color: Amber
+    - Action: Standard progression
+    - Most students fall in this category
+  </Tab>
+  
+  <Tab title="Mastered">
+    <Success>Students excelling</Success>
+    
+    - Score: **Above 85%**
+    - Color: Teal/Green
+    - Action: Content is well-understood
+    - Can move to advanced topics
+  </Tab>
+</Tabs>
+
+### Visual Representation
+
+Quiz insights display a stacked bar chart:
+
+```jsx
+<div className="flex h-2 rounded-full overflow-hidden gap-px">
+  {['needs_review', 'on_track', 'mastered'].map((category) => {
+    const percentage = (item[category] / total) * 100
+    return (
+      <div
+        key={category}
+        className={`${GROUP_COLORS[category].bar}`}
+        style={{ width: `${percentage}%` }}
+        title={`${GROUP_COLORS[category].label}: ${item[category]} students`}
+      />
+    )
+  })}
+</div>
+```
+
+**Color Scheme:**
+
+```javascript
+const GROUP_COLORS = {
+  needs_review: {
+    bar: 'bg-red-400',
+    label: 'Needs Review',
+    text: 'text-red-600',
+    bg: 'bg-red-50'
+  },
+  on_track: {
+    bar: 'bg-amber-400',
+    label: 'On Track',
+    text: 'text-amber-600',
+    bg: 'bg-amber-50'
+  },
+  mastered: {
+    bar: 'bg-teal-500',
+    label: 'Mastered',
+    text: 'text-teal-600',
+    bg: 'bg-teal-50'
+  }
+}
+```
+
+### Example Quiz Insight Display
+
+```
+┌─────────────────────────────────────────────────┐
+│ State Management                           78%  │
+│ React Fundamentals                     25 attempts│
+├─────────────────────────────────────────────────┤
+│ [====|================|==========]             │
+│  Red     Amber          Teal                   │
+├─────────────────────────────────────────────────┤
+│ 🔴 Needs Review: 3                              │
+│ 🟡 On Track: 12                                 │
+│ 🟢 Mastered: 10                                 │
+└─────────────────────────────────────────────────┘
+```
+
+## Loading States
+
+While data is being fetched, skeleton loaders are displayed:
+
+```jsx
+{!dashboardData ? (
+  <div className="space-y-8">
+    {/* Stat card skeletons */}
+    <div className="flex flex-wrap gap-4">
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="flex-1 min-w-[190px]">
+          <Skeleton className="h-11 w-11 rounded-xl" />
+          <Skeleton className="h-7 w-20 mt-2" />
+          <Skeleton className="h-3 w-28 mt-1" />
+        </div>
+      ))}
+    </div>
+    
+    {/* Table skeleton */}
+    <div className="space-y-2">
+      {[...Array(5)].map((_, i) => (
+        <div key={i} className="flex items-center gap-4 p-4">
+          <Skeleton className="w-8 h-8 rounded-full" />
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-48 ml-auto" />
+        </div>
+      ))}
+    </div>
+  </div>
+) : (
+  // ... actual dashboard content
+)}
+```
+
+<Info>
+The loading state ensures a smooth user experience while data is being retrieved from the backend.
+</Info>
+
+## Responsive Design
+
+The dashboard adapts to different screen sizes:
+
+### Desktop (≥768px)
+- All columns visible
+- Stat cards in horizontal row
+- Full table with all columns
+
+### Tablet (640px-767px)
+- Sequential numbers hidden
+- Stat cards wrap to 2 columns
+- Table scrolls horizontally if needed
+
+### Mobile (below 640px)
+- Stat cards stack vertically
+- Simplified table (student + course only)
+- Condensed quiz insights
+
+```jsx
+// Responsive class example
+<th className="hidden sm:table-cell"> // Hidden on mobile
+  #
+</th>
+```
+
+## Real-Time Updates
+
+### When Data Refreshes
+
+Dashboard data is fetched:
+
+1. **On page load** - `useEffect` hook triggers fetch
+2. **When educator status changes** - Auth context update
+3. **Manual refresh** - Browser page reload
+
+```javascript
+useEffect(() => {
+  if (isEducator) {
+    fetchDashboardData()
+    fetchQuizInsights()
+  }
+}, [isEducator])
+```
+
+<Warning>
+The dashboard does **not** auto-refresh. Students enrolling while you're viewing the page won't appear until you reload.
+</Warning>
+
+### Adding Auto-Refresh (Optional)
+
+To implement auto-refresh:
+
+```javascript
+useEffect(() => {
+  if (isEducator) {
+    fetchDashboardData()
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchDashboardData()
+    }, 30000)
+    
+    return () => clearInterval(interval)
+  }
+}, [isEducator])
+```
+
+## API Reference
+
+### Get Dashboard Data
+
+<CodeGroup>
+
+```javascript Request
+GET /api/educator/dashboard
+
+Headers:
+  Authorization: Bearer <jwt_token>
+```
+
+```json Response
+{
+  "success": true,
+  "dashboardData": {
+    "totalEarnings": 123456,
+    "totalCourses": 5,
+    "enrolledStudentsData": [
+      {
+        "courseTitle": "React Fundamentals",
+        "student": {
+          "_id": "user_abc123",
+          "name": "John Doe",
+          "imageUrl": "https://img.clerk.com/..."
+        }
+      }
+    ]
+  }
+}
+```
+
+</CodeGroup>
+
+### Get Quiz Insights
+
+<CodeGroup>
+
+```javascript Request
+GET /api/quiz/educator-insights
+
+Headers:
+  Authorization: Bearer <jwt_token>
+```
+
+```json Response
+{
+  "success": true,
+  "insights": [
+    {
+      "courseTitle": "React Fundamentals",
+      "chapterTitle": "State Management",
+      "attempts": 25,
+      "avgPct": 78,
+      "needs_review": 3,
+      "on_track": 12,
+      "mastered": 10
+    }
+  ]
+}
+```
+
+</CodeGroup>
+
+## Interpreting Your Metrics
+
+<AccordionGroup>
+  <Accordion title="Low Enrollments">
+    **Possible reasons:**
+    - Course pricing too high
+    - Weak course description or thumbnail
+    - Limited marketing/visibility
+    - Competitive niche
+    
+    **Actions to take:**
+    - Review and improve course thumbnail
+    - Add free preview lectures
+    - Offer limited-time discount
+    - Share on social media
+  </Accordion>
+  
+  <Accordion title="High Dropout Rates">
+    If quiz insights show many "Needs Review" students:
+    
+    **Possible reasons:**
+    - Content too advanced
+    - Insufficient explanation
+    - Missing prerequisites
+    - Quiz difficulty mismatch
+    
+    **Actions to take:**
+    - Add supplementary materials
+    - Create additional introductory lectures
+    - Clarify prerequisites in description
+    - Review quiz question difficulty
+  </Accordion>
+  
+  <Accordion title="Strong Performance">
+    If most students are "Mastered":
+    
+    **Good signs:**
+    - Clear explanations
+    - Well-paced content
+    - Good course structure
+    
+    **Next steps:**
+    - Consider advanced follow-up course
+    - Add bonus/challenge content
+    - Request student testimonials
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Check Daily" icon="calendar-day">
+    Monitor your dashboard regularly to track growth trends and student engagement patterns
+  </Card>
+  <Card title="Analyze Patterns" icon="chart-line">
+    Look for enrollment spikes after marketing efforts or course updates
+  </Card>
+  <Card title="Act on Insights" icon="lightbulb">
+    Use quiz performance data to improve specific chapters or add supplementary content
+  </Card>
+  <Card title="Celebrate Milestones" icon="trophy">
+    Acknowledge achievements like first 100 students or ₹1,00,000 earnings
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="View Student Details" icon="users" href="/educators/student-management">
+    See complete list of enrolled students with purchase dates
+  </Card>
+  <Card title="Manage Courses" icon="book" href="/educators/managing-content">
+    Update course content based on quiz insights
+  </Card>
+</CardGroup>

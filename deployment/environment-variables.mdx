@@ -1,0 +1,846 @@
+---
+title: 'Environment Variables'
+description: 'Complete reference for configuring SkillRise server and client'
+icon: 'key'
+---
+
+## Overview
+
+SkillRise requires environment variables for database connections, third-party services, and application configuration. The server uses runtime environment variables, while the client uses build-time variables.
+
+<CardGroup cols={2}>
+  <Card title="Server Variables" icon="server">
+    Runtime configuration via `.env` file
+  </Card>
+  <Card title="Client Variables" icon="browser">
+    Build-time configuration with Vite
+  </Card>
+</CardGroup>
+
+## Server Environment Variables
+
+The server reads variables from a `.env` file in the `server/` directory at runtime.
+
+### Quick Reference
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `PORT` | No | `3000` | Server port |
+| `NODE_ENV` | No | - | Environment mode |
+| `FRONTEND_URL` | Production only | `http://localhost:5173` | CORS origin |
+| `BACKEND_PUBLIC_URL` | No | - | Public API URL |
+| `MONGODB_URI` | Yes | - | MongoDB connection string |
+| `CLERK_WEBHOOK_SECRET` | Yes | - | Clerk webhook signing key |
+| `CLOUDINARY_NAME` | Yes | - | Cloudinary cloud name |
+| `CLOUDINARY_API_KEY` | Yes | - | Cloudinary API key |
+| `CLOUDINARY_SECRET_KEY` | Yes | - | Cloudinary API secret |
+| `RAZORPAY_KEY_ID` | Yes | - | Razorpay key ID |
+| `RAZORPAY_KEY_SECRET` | Yes | - | Razorpay key secret |
+| `RAZORPAY_WEBHOOK_SECRET` | Yes | - | Razorpay webhook secret |
+| `CURRENCY` | No | `INR` | Payment currency code |
+| `GROQ_CHATBOT_API_KEY` | Yes | - | Groq AI API key |
+
+### Configuration File
+
+Create a `.env` file in the `server/` directory:
+
+```bash server/.env
+# Server Configuration
+PORT=3000
+NODE_ENV=production
+FRONTEND_URL=https://yourdomain.com
+BACKEND_PUBLIC_URL=https://api.yourdomain.com
+
+# Database
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net
+
+# Authentication
+CLERK_WEBHOOK_SECRET=whsec_...
+
+# File Storage
+CLOUDINARY_NAME=your-cloud-name
+CLOUDINARY_API_KEY=123456789012345
+CLOUDINARY_SECRET_KEY=abcdefghijklmnopqrstuvwxyz
+
+# Payment Gateway
+RAZORPAY_KEY_ID=rzp_test_...
+RAZORPAY_KEY_SECRET=...
+RAZORPAY_WEBHOOK_SECRET=...
+CURRENCY=INR
+
+# AI Services
+GROQ_CHATBOT_API_KEY=gsk_...
+```
+
+<Warning>
+  Never commit the `.env` file to version control. Add it to `.gitignore`.
+</Warning>
+
+### Variable Details
+
+<AccordionGroup>
+  <Accordion title="Server Configuration" icon="server">
+    **`PORT`** (Optional)
+    - **Type:** Number
+    - **Default:** `3000`
+    - **Usage:** `server.js:157`
+    - **Description:** HTTP server listening port
+    
+    ```javascript
+    const PORT = process.env.PORT || 3000
+    app.listen(PORT, () => {
+      console.info(`Server is running on port ${PORT}`)
+    })
+    ```
+
+    **`NODE_ENV`** (Optional)
+    - **Type:** String
+    - **Values:** `development`, `production`
+    - **Usage:** `server.js:26`, `server.js:149`
+    - **Description:** Controls error logging verbosity and CORS validation
+    
+    ```javascript
+    if (!process.env.FRONTEND_URL && process.env.NODE_ENV === 'production') {
+      throw new Error('FRONTEND_URL env var is required in production')
+    }
+    ```
+
+    **`FRONTEND_URL`** (Required in production)
+    - **Type:** URL
+    - **Default:** `http://localhost:5173`
+    - **Usage:** `server.js:26-29`
+    - **Description:** CORS allowed origin for frontend requests
+    
+    ```javascript
+    app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }))
+    ```
+
+    <Info>
+      In production, `FRONTEND_URL` must be set to prevent "CORS origin mismatch" errors.
+    </Info>
+
+    **`BACKEND_PUBLIC_URL`** (Optional)
+    - **Type:** URL
+    - **Fallback:** `VITE_BACKEND_URL`
+    - **Usage:** `userController.js:66-67`
+    - **Description:** Public-facing backend URL for email links and webhooks
+    
+    ```javascript
+    const backendUrl = process.env.BACKEND_PUBLIC_URL ||
+                       process.env.VITE_BACKEND_URL ||
+                       'http://localhost:3000'
+    ```
+  </Accordion>
+
+  <Accordion title="Database" icon="database">
+    **`MONGODB_URI`** (Required)
+    - **Type:** Connection string
+    - **Usage:** `configs/mongodb.js:7`
+    - **Description:** MongoDB connection URI
+    - **Format:** `mongodb+srv://username:password@host/database?options`
+    
+    ```javascript
+    await mongoose.connect(`${process.env.MONGODB_URI}/SkillRise`)
+    ```
+
+    <Tip>
+      The database name `SkillRise` is automatically appended to the connection string.
+    </Tip>
+
+    **Getting MongoDB URI:**
+
+    <Steps>
+      <Step title="Create MongoDB Atlas Account">
+        Sign up at [mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas)
+      </Step>
+
+      <Step title="Create Cluster">
+        - Choose cloud provider and region
+        - Select free tier (M0) or paid tier
+        - Click "Create Cluster"
+      </Step>
+
+      <Step title="Configure Database Access">
+        - Go to **Database Access**
+        - Click **Add New Database User**
+        - Create username and password
+        - Grant "Read and write to any database" permission
+      </Step>
+
+      <Step title="Configure Network Access">
+        - Go to **Network Access**
+        - Click **Add IP Address**
+        - Add `0.0.0.0/0` for all IPs (or restrict to your server IP)
+      </Step>
+
+      <Step title="Get Connection String">
+        - Go to **Clusters** → **Connect**
+        - Choose **Connect your application**
+        - Copy connection string
+        - Replace `<password>` with your database user password
+      </Step>
+    </Steps>
+
+    **Example:**
+    ```
+    mongodb+srv://skillrise-user:MySecurePassword123@cluster0.abcde.mongodb.net
+    ```
+
+    <Warning>
+      Remove `/test` or any database name from the connection string. The server appends `/SkillRise` automatically.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="Authentication" icon="lock">
+    **`CLERK_WEBHOOK_SECRET`** (Required)
+    - **Type:** String (starts with `whsec_`)
+    - **Usage:** `controllers/webhooks.js:10`
+    - **Description:** Secret key for verifying Clerk webhook signatures
+    
+    ```javascript
+    const webhook = new Webhook(process.env.CLERK_WEBHOOK_SECRET)
+    const payload = webhook.verify(body, headers)
+    ```
+
+    **Getting Clerk Webhook Secret:**
+
+    <Steps>
+      <Step title="Create Clerk Application">
+        Sign up at [clerk.com](https://clerk.com) and create a new application
+      </Step>
+
+      <Step title="Configure Webhook Endpoint">
+        - Go to **Webhooks** in Clerk dashboard
+        - Click **Add Endpoint**
+        - Enter URL: `https://yourdomain.com/clerk`
+        - Select events: `user.created`, `user.updated`, `user.deleted`
+      </Step>
+
+      <Step title="Copy Signing Secret">
+        - After creating endpoint, reveal **Signing Secret**
+        - Copy the `whsec_...` value
+        - Add to `.env` as `CLERK_WEBHOOK_SECRET`
+      </Step>
+    </Steps>
+
+    <Info>
+      Clerk webhooks sync user data between Clerk and your MongoDB database.
+    </Info>
+  </Accordion>
+
+  <Accordion title="File Storage" icon="image">
+    **`CLOUDINARY_NAME`** (Required)
+    - **Type:** String
+    - **Usage:** `configs/cloudinary.js:5`
+    - **Description:** Cloudinary cloud name
+
+    **`CLOUDINARY_API_KEY`** (Required)
+    - **Type:** String
+    - **Usage:** `configs/cloudinary.js:6`
+    - **Description:** Cloudinary API key
+
+    **`CLOUDINARY_SECRET_KEY`** (Required)
+    - **Type:** String
+    - **Usage:** `configs/cloudinary.js:7`
+    - **Description:** Cloudinary API secret
+    
+    ```javascript
+    cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_SECRET_KEY,
+    })
+    ```
+
+    **Getting Cloudinary Credentials:**
+
+    <Steps>
+      <Step title="Create Cloudinary Account">
+        Sign up at [cloudinary.com](https://cloudinary.com)
+      </Step>
+
+      <Step title="Access Dashboard">
+        Go to **Dashboard** after logging in
+      </Step>
+
+      <Step title="Copy Credentials">
+        Find the **Account Details** section:
+        - **Cloud name:** Your unique cloud name
+        - **API Key:** Your API key (15 digits)
+        - **API Secret:** Click "Reveal" to see secret
+      </Step>
+    </Steps>
+
+    **Usage in SkillRise:**
+    - Course thumbnails
+    - Lesson video uploads
+    - User profile pictures
+    - Certificate backgrounds
+    - Community post images
+  </Accordion>
+
+  <Accordion title="Payment Gateway" icon="credit-card">
+    **`RAZORPAY_KEY_ID`** (Required)
+    - **Type:** String (starts with `rzp_test_` or `rzp_live_`)
+    - **Usage:** `services/payments/razorpay.service.js:16`, `razorpay.service.js:37`
+    - **Description:** Razorpay API key ID
+
+    **`RAZORPAY_KEY_SECRET`** (Required)
+    - **Type:** String
+    - **Usage:** `services/payments/razorpay.service.js:17`, `razorpay.service.js:50`
+    - **Description:** Razorpay API key secret
+    
+    ```javascript
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    })
+    ```
+
+    **`RAZORPAY_WEBHOOK_SECRET`** (Required)
+    - **Type:** String
+    - **Usage:** `controllers/webhooks.js:72`
+    - **Description:** Webhook signature verification secret
+    
+    ```javascript
+    const generatedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
+      .update(JSON.stringify(req.body))
+      .digest('hex')
+    ```
+
+    **`CURRENCY`** (Optional)
+    - **Type:** ISO 4217 currency code
+    - **Default:** `INR`
+    - **Usage:** `razorpay.service.js:20`, `userController.js:508`
+    - **Description:** Currency for payment amounts
+    - **Supported:** `INR`, `USD`, `EUR`, `GBP`, etc.
+    
+    ```javascript
+    const currency = process.env.CURRENCY || 'INR'
+    ```
+
+    **Getting Razorpay Credentials:**
+
+    <Steps>
+      <Step title="Create Razorpay Account">
+        Sign up at [razorpay.com](https://razorpay.com)
+      </Step>
+
+      <Step title="Generate API Keys">
+        - Go to **Settings** → **API Keys**
+        - Click **Generate Test Keys** (for testing)
+        - Or **Generate Live Keys** (for production)
+        - Copy **Key ID** and **Key Secret**
+      </Step>
+
+      <Step title="Configure Webhook">
+        - Go to **Settings** → **Webhooks**
+        - Click **Add Webhook**
+        - Enter URL: `https://yourdomain.com/razorpay`
+        - Select events: `payment.authorized`, `payment.captured`, `payment.failed`
+        - Copy **Webhook Secret**
+      </Step>
+    </Steps>
+
+    <Warning>
+      Use test keys (`rzp_test_...`) during development and live keys (`rzp_live_...`) in production.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="AI Services" icon="sparkles">
+    **`GROQ_CHATBOT_API_KEY`** (Required)
+    - **Type:** String (starts with `gsk_`)
+    - **Usage:** `services/chatbot/aiChatbotService.js:3`
+    - **Description:** Groq API key for AI chatbot functionality
+    
+    ```javascript
+    const groq = new Groq({ apiKey: process.env.GROQ_CHATBOT_API_KEY })
+    ```
+
+    **Getting Groq API Key:**
+
+    <Steps>
+      <Step title="Create Groq Account">
+        Sign up at [console.groq.com](https://console.groq.com)
+      </Step>
+
+      <Step title="Generate API Key">
+        - Go to **API Keys** section
+        - Click **Create API Key**
+        - Name your key (e.g., "SkillRise Production")
+        - Copy the generated key (starts with `gsk_`)
+      </Step>
+
+      <Step title="Set Usage Limits (Optional)">
+        Configure rate limits and spending caps if needed
+      </Step>
+    </Steps>
+
+    **Groq Features in SkillRise:**
+    - AI-powered course assistant chatbot
+    - Quiz generation from course content
+    - Personalized learning roadmap generation
+    - Content recommendations
+
+    <Tip>
+      Groq offers high-speed LLM inference with generous free tier limits.
+    </Tip>
+  </Accordion>
+</AccordionGroup>
+
+## Client Environment Variables
+
+The client uses Vite environment variables that are embedded into the build at compile time.
+
+### Quick Reference
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_CLERK_PUBLISHABLE_KEY` | Yes | Clerk authentication public key |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | Yes | Stripe payment public key |
+| `VITE_BACKEND_URL` | Yes | Backend API base URL |
+
+### Configuration
+
+Client variables are passed as **build arguments** when building the Docker image:
+
+```dockerfile client/Dockerfile
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ARG VITE_STRIPE_PUBLISHABLE_KEY
+ARG VITE_BACKEND_URL
+
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
+ENV VITE_STRIPE_PUBLISHABLE_KEY=$VITE_STRIPE_PUBLISHABLE_KEY
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+```
+
+### Local Development
+
+For local development, create a `.env` file in the `client/` directory:
+
+```bash client/.env
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+VITE_BACKEND_URL=http://localhost:3000
+```
+
+<Info>
+  Vite automatically loads `.env` files during development (`npm run dev`).
+</Info>
+
+### Variable Details
+
+<AccordionGroup>
+  <Accordion title="VITE_CLERK_PUBLISHABLE_KEY" icon="lock">
+    **Type:** String (starts with `pk_test_` or `pk_live_`)  
+    **Usage:** `client/src/main.jsx:11`  
+    **Description:** Clerk publishable key for client-side authentication
+    
+    ```javascript
+    const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+
+    if (!PUBLISHABLE_KEY) {
+      throw new Error('Missing Clerk Publishable Key')
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(
+      <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+        <App />
+      </ClerkProvider>
+    )
+    ```
+
+    **Getting the Key:**
+    1. Go to [Clerk Dashboard](https://dashboard.clerk.com)
+    2. Select your application
+    3. Navigate to **API Keys**
+    4. Copy **Publishable key** (starts with `pk_test_` or `pk_live_`)
+
+    <Warning>
+      This is a **public** key safe to include in client code. Do not confuse with the secret key.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="VITE_STRIPE_PUBLISHABLE_KEY" icon="credit-card">
+    **Type:** String (starts with `pk_test_` or `pk_live_`)  
+    **Usage:** Client-side Stripe integration (if implemented)  
+    **Description:** Stripe publishable key for payment UI
+
+    <Note>
+      SkillRise currently uses Razorpay for payments. This variable is included for future Stripe integration or international payments.
+    </Note>
+
+    **Getting the Key:**
+    1. Go to [Stripe Dashboard](https://dashboard.stripe.com)
+    2. Click **Developers** → **API keys**
+    3. Copy **Publishable key**
+
+    **Test vs Live:**
+    - Test key: `pk_test_...` (for development)
+    - Live key: `pk_live_...` (for production)
+  </Accordion>
+
+  <Accordion title="VITE_BACKEND_URL" icon="server">
+    **Type:** URL  
+    **Usage:** `client/src/context/AppContext.jsx:12`, `client/src/hooks/useTimeTracker.js:28`  
+    **Description:** Backend API base URL for all API requests
+    
+    ```javascript
+    const backendUrl = import.meta.env.VITE_BACKEND_URL
+
+    // Example API calls
+    axios.get(`${backendUrl}/api/courses`)
+    axios.post(`${backendUrl}/api/user/purchase`, data)
+    ```
+
+    **Environment-Specific Values:**
+    - **Local development:** `http://localhost:3000`
+    - **Staging:** `https://api-staging.yourdomain.com`
+    - **Production:** `https://api.yourdomain.com`
+
+    <Warning>
+      This URL is embedded in the build and cannot be changed after compilation. Ensure it matches your deployment environment.
+    </Warning>
+  </Accordion>
+</AccordionGroup>
+
+## Build-Time vs Runtime
+
+<Tabs>
+  <Tab title="Server (Runtime)">
+    **Runtime Configuration**
+    
+    - Variables loaded from `.env` file when server starts
+    - Can be changed without rebuilding
+    - Update by modifying `.env` and restarting container
+    
+    ```bash
+    # Update server config
+    nano server/.env
+    docker-compose restart server
+    ```
+
+    **Advantages:**
+    - Easy to update
+    - Different per environment
+    - Kept secret from version control
+  </Tab>
+
+  <Tab title="Client (Build-Time)">
+    **Build-Time Configuration**
+    
+    - Variables embedded during Docker image build
+    - Cannot be changed after build
+    - Requires rebuilding image to update
+    
+    ```bash
+    # Update client config requires rebuild
+    docker build \
+      --build-arg VITE_BACKEND_URL="https://new-api.com" \
+      -t skillrise-client:latest \
+      ./client
+    ```
+
+    **Advantages:**
+    - Optimized bundle (dead code elimination)
+    - No runtime configuration needed
+    - Better performance
+
+    **Considerations:**
+    - Must rebuild for config changes
+    - Separate builds for each environment
+    - Public keys only (embedded in JavaScript)
+  </Tab>
+</Tabs>
+
+## Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="Secret Management" icon="shield">
+    **Do:**
+    - Use environment variables for all secrets
+    - Never commit `.env` files to Git
+    - Add `.env` to `.gitignore`
+    - Use different credentials for development/production
+    - Rotate secrets regularly
+
+    **Don't:**
+    - Hardcode secrets in source code
+    - Share `.env` files via email or chat
+    - Commit secrets to version control
+    - Use production secrets in development
+    - Log secret values
+
+    ```gitignore .gitignore
+    # Environment files
+    .env
+    .env.local
+    .env.*.local
+    server/.env
+    client/.env
+    ```
+  </Accordion>
+
+  <Accordion title="Public vs Secret Keys" icon="key">
+    **Public Keys (Safe in client code):**
+    - ✅ `VITE_CLERK_PUBLISHABLE_KEY` (starts with `pk_`)
+    - ✅ `VITE_STRIPE_PUBLISHABLE_KEY` (starts with `pk_`)
+    - ✅ `VITE_BACKEND_URL`
+
+    **Secret Keys (Server-only):**
+    - ❌ `CLERK_WEBHOOK_SECRET`
+    - ❌ `RAZORPAY_KEY_SECRET`
+    - ❌ `CLOUDINARY_SECRET_KEY`
+    - ❌ `GROQ_CHATBOT_API_KEY`
+    - ❌ `MONGODB_URI` (contains password)
+
+    <Warning>
+      Never pass secret keys as build arguments to client Docker image. They will be embedded in the JavaScript bundle and exposed to users.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="Environment Separation" icon="layer-group">
+    Use separate credentials for each environment:
+
+    **Development:**
+    ```bash
+    # server/.env.development
+    MONGODB_URI=mongodb://localhost:27017
+    RAZORPAY_KEY_ID=rzp_test_...
+    CLERK_WEBHOOK_SECRET=whsec_test_...
+    ```
+
+    **Staging:**
+    ```bash
+    # server/.env.staging
+    MONGODB_URI=mongodb+srv://staging-cluster...
+    RAZORPAY_KEY_ID=rzp_test_...
+    CLERK_WEBHOOK_SECRET=whsec_staging_...
+    ```
+
+    **Production:**
+    ```bash
+    # server/.env.production
+    MONGODB_URI=mongodb+srv://production-cluster...
+    RAZORPAY_KEY_ID=rzp_live_...
+    CLERK_WEBHOOK_SECRET=whsec_production_...
+    ```
+  </Accordion>
+
+  <Accordion title="GitHub Secrets" icon="github">
+    Store secrets in GitHub repository settings for CI/CD:
+
+    1. **Repository Settings** → **Secrets and variables** → **Actions**
+    2. Add secrets (never use `.env` file in CI)
+    3. Reference in workflows: `${{ secrets.SECRET_NAME }}`
+
+    **Required GitHub Secrets:**
+    - `DOCKER_USERNAME`
+    - `DOCKER_PASSWORD`
+    - `VITE_CLERK_PUBLISHABLE_KEY`
+    - `VITE_STRIPE_PUBLISHABLE_KEY`
+    - `VITE_BACKEND_URL`
+
+    <Tip>
+      Use GitHub Environments for environment-specific secrets (development, staging, production).
+    </Tip>
+  </Accordion>
+</AccordionGroup>
+
+## Environment Templates
+
+### Complete Server .env Template
+
+```bash server/.env.template
+# ============================================
+# SERVER CONFIGURATION
+# ============================================
+PORT=3000
+NODE_ENV=production
+FRONTEND_URL=https://yourdomain.com
+BACKEND_PUBLIC_URL=https://api.yourdomain.com
+
+# ============================================
+# DATABASE
+# ============================================
+# MongoDB Atlas connection string
+# Format: mongodb+srv://username:password@host/database
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net
+
+# ============================================
+# AUTHENTICATION
+# ============================================
+# Clerk webhook signing secret
+# Get from: https://dashboard.clerk.com → Webhooks
+CLERK_WEBHOOK_SECRET=whsec_...
+
+# ============================================
+# FILE STORAGE
+# ============================================
+# Cloudinary credentials
+# Get from: https://cloudinary.com/console
+CLOUDINARY_NAME=your-cloud-name
+CLOUDINARY_API_KEY=123456789012345
+CLOUDINARY_SECRET_KEY=abcdefghijklmnopqrstuvwxyz
+
+# ============================================
+# PAYMENT GATEWAY
+# ============================================
+# Razorpay credentials
+# Get from: https://dashboard.razorpay.com/app/keys
+RAZORPAY_KEY_ID=rzp_test_...
+RAZORPAY_KEY_SECRET=...
+RAZORPAY_WEBHOOK_SECRET=...
+CURRENCY=INR
+
+# ============================================
+# AI SERVICES
+# ============================================
+# Groq API key for chatbot and AI features
+# Get from: https://console.groq.com/keys
+GROQ_CHATBOT_API_KEY=gsk_...
+```
+
+### Complete Client .env Template
+
+```bash client/.env.template
+# ============================================
+# CLIENT CONFIGURATION
+# ============================================
+# These variables are embedded into the build
+# Public keys only - never include secrets!
+
+# Clerk publishable key (starts with pk_)
+# Get from: https://dashboard.clerk.com → API Keys
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+
+# Stripe publishable key (starts with pk_)
+# Get from: https://dashboard.stripe.com → Developers → API keys
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+
+# Backend API URL
+# Development: http://localhost:3000
+# Production: https://api.yourdomain.com
+VITE_BACKEND_URL=http://localhost:3000
+```
+
+## Validation
+
+Add validation to ensure all required variables are set:
+
+```javascript server/validateEnv.js
+const requiredEnvVars = [
+  'MONGODB_URI',
+  'CLERK_WEBHOOK_SECRET',
+  'CLOUDINARY_NAME',
+  'CLOUDINARY_API_KEY',
+  'CLOUDINARY_SECRET_KEY',
+  'RAZORPAY_KEY_ID',
+  'RAZORPAY_KEY_SECRET',
+  'RAZORPAY_WEBHOOK_SECRET',
+  'GROQ_CHATBOT_API_KEY',
+]
+
+requiredEnvVars.forEach((varName) => {
+  if (!process.env[varName]) {
+    throw new Error(`Missing required environment variable: ${varName}`)
+  }
+})
+
+if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL) {
+  throw new Error('FRONTEND_URL is required in production')
+}
+
+console.log('✓ All required environment variables are set')
+```
+
+Run before starting the server:
+
+```javascript server/server.js
+import './validateEnv.js' // Add at top
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Missing Environment Variable">
+    **Error:**
+    ```
+    Error: Missing required environment variable: MONGODB_URI
+    ```
+
+    **Solution:**
+    1. Check `.env` file exists in correct directory
+    2. Verify variable name is spelled correctly
+    3. Ensure no spaces around `=` (use `KEY=value`, not `KEY = value`)
+    4. Restart server after changing `.env`
+  </Accordion>
+
+  <Accordion title="MongoDB Connection Failed">
+    **Error:**
+    ```
+    MongooseServerSelectionError: Could not connect to any servers
+    ```
+
+    **Solutions:**
+    - Verify `MONGODB_URI` is correct
+    - Check MongoDB Atlas IP whitelist (add `0.0.0.0/0` or your server IP)
+    - Ensure database user has correct permissions
+    - Test connection string in MongoDB Compass
+  </Accordion>
+
+  <Accordion title="Clerk Webhook Verification Failed">
+    **Error:**
+    ```
+    Error: Webhook signature verification failed
+    ```
+
+    **Solutions:**
+    - Verify `CLERK_WEBHOOK_SECRET` matches Clerk dashboard
+    - Check webhook endpoint URL is correct
+    - Ensure request body is not modified before webhook handler
+    - Test webhook with Clerk dashboard testing tool
+  </Accordion>
+
+  <Accordion title="CORS Errors in Browser">
+    **Error:**
+    ```
+    Access to XMLHttpRequest blocked by CORS policy
+    ```
+
+    **Solutions:**
+    - Verify `FRONTEND_URL` in server `.env` matches client URL exactly
+    - Check `VITE_BACKEND_URL` in client build is correct
+    - Ensure no trailing slashes in URLs
+    - Clear browser cache and rebuild client
+  </Accordion>
+
+  <Accordion title="Client Build Variables Not Working">
+    **Issue:** Changes to `VITE_*` variables not reflected
+
+    **Solution:**
+    Client variables are build-time only. You must rebuild:
+    
+    ```bash
+    # Local development
+    cd client
+    rm -rf dist
+    npm run build
+
+    # Docker
+    docker-compose up -d --build client
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Docker Deployment" icon="docker" href="/deployment/docker">
+    Deploy with environment variables
+  </Card>
+  <Card title="CI/CD Pipeline" icon="circle-play" href="/deployment/ci-cd">
+    Configure secrets for GitHub Actions
+  </Card>
+</CardGroup>

@@ -1,0 +1,510 @@
+---
+title: 'Docker Deployment'
+description: 'Deploy SkillRise using Docker and Docker Compose with pre-built images'
+icon: 'docker'
+---
+
+## Overview
+
+SkillRise uses a containerized architecture with separate Docker images for the client and server. Both images are built using multi-stage builds for optimal security and performance.
+
+<CardGroup cols={2}>
+  <Card title="Server Image" icon="server">
+    Node.js 20 Alpine with production dependencies
+  </Card>
+  <Card title="Client Image" icon="browser">
+    Nginx Alpine serving optimized Vite build
+  </Card>
+</CardGroup>
+
+## Quick Start with Docker Compose
+
+The fastest way to deploy SkillRise is using the pre-built images from Docker Hub.
+
+<Steps>
+  <Step title="Create docker-compose.yml">
+    Create a `docker-compose.yml` file with the following configuration:
+
+    ```yaml docker-compose.yml
+    services:
+      server:
+        image: pushkarverma/skillrise-server:latest
+        ports:
+          - '3000:3000'
+        env_file:
+          - ./server/.env
+        restart: unless-stopped
+
+      client:
+        image: pushkarverma/skillrise-client:latest
+        ports:
+          - '80:80'
+        depends_on:
+          - server
+        restart: unless-stopped
+    ```
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Create a `server/.env` file with all required environment variables. See the [Environment Variables](/deployment/environment-variables) guide for the complete reference.
+
+    <Warning>
+      Ensure MongoDB, Clerk, Cloudinary, and payment gateway credentials are properly configured before starting the containers.
+    </Warning>
+  </Step>
+
+  <Step title="Start the Containers">
+    ```bash
+    docker-compose up -d
+    ```
+
+    This will:
+    - Pull the latest images from Docker Hub
+    - Start the server on port 3000
+    - Start the client on port 80
+    - Automatically restart containers on failure
+  </Step>
+
+  <Step title="Verify Deployment">
+    Check that both services are running:
+
+    ```bash
+    docker-compose ps
+    ```
+
+    Test the server API:
+    ```bash
+    curl http://localhost:3000/
+    # Expected: "API Working"
+    ```
+
+    Access the client at `http://localhost`
+  </Step>
+</Steps>
+
+## Server Dockerfile
+
+The server uses a single-stage build optimized for production:
+
+```dockerfile server/Dockerfile
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Create non-root user and group early
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Install dependencies
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+# Copy source code with correct ownership
+COPY --chown=appuser:appgroup . .
+
+# Switch to non-root user
+USER appuser
+
+EXPOSE 3000
+CMD ["node", "server.js"]
+```
+
+### Server Image Features
+
+<AccordionGroup>
+  <Accordion title="Security Hardening">
+    - Runs as non-root user (`appuser`)
+    - Minimal Alpine Linux base image
+    - Production dependencies only (`--omit=dev`)
+    - Proper file ownership with `--chown`
+  </Accordion>
+
+  <Accordion title="Optimization">
+    - Uses `npm ci` for reproducible builds
+    - Node.js 20 LTS for stability
+    - Small image size (~150MB)
+  </Accordion>
+
+  <Accordion title="Configuration">
+    - Exposes port 3000
+    - Reads environment from `.env` file
+    - Connects to MongoDB on startup
+    - Initializes Cloudinary connection
+  </Accordion>
+</AccordionGroup>
+
+## Client Dockerfile
+
+The client uses a multi-stage build to separate build dependencies from the runtime:
+
+```dockerfile client/Dockerfile
+# Stage 1: Build
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ARG VITE_STRIPE_PUBLISHABLE_KEY
+ARG VITE_BACKEND_URL
+
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
+ENV VITE_STRIPE_PUBLISHABLE_KEY=$VITE_STRIPE_PUBLISHABLE_KEY
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+
+COPY . .
+RUN npm run build
+
+# Stage 2: Serve with nginx
+FROM nginx:alpine
+
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+### Client Image Features
+
+<AccordionGroup>
+  <Accordion title="Multi-Stage Build">
+    **Stage 1 (Builder):**
+    - Installs all dependencies (including devDependencies)
+    - Receives build-time arguments for Vite configuration
+    - Compiles React app with Vite
+    - Produces optimized static files in `/app/dist`
+
+    **Stage 2 (Runtime):**
+    - Uses minimal Nginx Alpine image
+    - Copies only the built static files
+    - No Node.js or build tools in final image
+    - Results in ~25MB image size
+  </Accordion>
+
+  <Accordion title="Nginx Configuration">
+    The client includes a custom `nginx.conf` for SPA routing:
+
+    ```nginx client/nginx.conf
+    server {
+        listen 80;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # SPA fallback — all routes serve index.html
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+    }
+    ```
+
+    This ensures React Router works correctly by serving `index.html` for all routes.
+  </Accordion>
+
+  <Accordion title="Build Arguments">
+    The client requires three build-time arguments:
+    - `VITE_CLERK_PUBLISHABLE_KEY` - Clerk authentication public key
+    - `VITE_STRIPE_PUBLISHABLE_KEY` - Stripe payment public key  
+    - `VITE_BACKEND_URL` - Backend API URL (e.g., `http://localhost:3000`)
+
+    These are embedded into the build and cannot be changed at runtime.
+  </Accordion>
+</AccordionGroup>
+
+## Building Custom Images
+
+If you need to build images locally or customize the build:
+
+### Build Server Image
+
+```bash
+cd server
+docker build -t skillrise-server:custom .
+```
+
+### Build Client Image
+
+```bash
+cd client
+docker build \
+  --build-arg VITE_CLERK_PUBLISHABLE_KEY="pk_test_xxx" \
+  --build-arg VITE_STRIPE_PUBLISHABLE_KEY="pk_test_xxx" \
+  --build-arg VITE_BACKEND_URL="http://localhost:3000" \
+  -t skillrise-client:custom .
+```
+
+<Warning>
+  Never commit actual API keys to your Dockerfile. Always pass them as build arguments or use CI/CD secrets.
+</Warning>
+
+## Docker Compose with Custom Images
+
+To use your custom images:
+
+```yaml docker-compose.custom.yml
+services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    env_file:
+      - ./server/.env
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
+        VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY}
+        VITE_BACKEND_URL: ${VITE_BACKEND_URL}
+    ports:
+      - '80:80'
+    depends_on:
+      - server
+    restart: unless-stopped
+```
+
+Build and start:
+
+```bash
+docker-compose -f docker-compose.custom.yml up -d --build
+```
+
+## Container Management
+
+### View Logs
+
+```bash
+# All services
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f server
+docker-compose logs -f client
+```
+
+### Restart Services
+
+```bash
+# Restart all
+docker-compose restart
+
+# Restart specific service
+docker-compose restart server
+```
+
+### Stop and Remove
+
+```bash
+# Stop containers
+docker-compose stop
+
+# Stop and remove containers
+docker-compose down
+
+# Remove containers and volumes
+docker-compose down -v
+```
+
+### Update to Latest Images
+
+```bash
+docker-compose pull
+docker-compose up -d
+```
+
+## Production Considerations
+
+<AccordionGroup>
+  <Accordion title="Reverse Proxy Setup">
+    In production, use a reverse proxy like Nginx or Traefik:
+
+    ```nginx
+    # Nginx reverse proxy example
+    server {
+        listen 443 ssl http2;
+        server_name yourdomain.com;
+
+        # SSL configuration
+        ssl_certificate /path/to/cert.pem;
+        ssl_certificate_key /path/to/key.pem;
+
+        # Client (frontend)
+        location / {
+            proxy_pass http://localhost:80;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+
+        # Server (API)
+        location /api/ {
+            proxy_pass http://localhost:3000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Resource Limits">
+    Add resource constraints to prevent resource exhaustion:
+
+    ```yaml docker-compose.yml
+    services:
+      server:
+        image: pushkarverma/skillrise-server:latest
+        deploy:
+          resources:
+            limits:
+              cpus: '2'
+              memory: 2G
+            reservations:
+              cpus: '0.5'
+              memory: 512M
+    ```
+  </Accordion>
+
+  <Accordion title="Health Checks">
+    Add health checks for automatic recovery:
+
+    ```yaml docker-compose.yml
+    services:
+      server:
+        image: pushkarverma/skillrise-server:latest
+        healthcheck:
+          test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
+          interval: 30s
+          timeout: 10s
+          retries: 3
+          start_period: 40s
+    ```
+  </Accordion>
+
+  <Accordion title="Logging Configuration">
+    Configure log rotation to prevent disk space issues:
+
+    ```yaml docker-compose.yml
+    services:
+      server:
+        image: pushkarverma/skillrise-server:latest
+        logging:
+          driver: "json-file"
+          options:
+            max-size: "10m"
+            max-file: "3"
+    ```
+  </Accordion>
+
+  <Accordion title="Network Isolation">
+    Use custom networks for service isolation:
+
+    ```yaml docker-compose.yml
+    networks:
+      frontend:
+      backend:
+
+    services:
+      server:
+        image: pushkarverma/skillrise-server:latest
+        networks:
+          - backend
+
+      client:
+        image: pushkarverma/skillrise-client:latest
+        networks:
+          - frontend
+          - backend
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Server Won't Start">
+    **Check logs:**
+    ```bash
+    docker-compose logs server
+    ```
+
+    **Common issues:**
+    - Missing environment variables (check `server/.env`)
+    - MongoDB connection failure (verify `MONGODB_URI`)
+    - Port 3000 already in use (change port mapping)
+
+    **Verify MongoDB connection:**
+    ```bash
+    docker-compose exec server node -e "require('mongoose').connect(process.env.MONGODB_URI).then(() => console.log('Connected')).catch(e => console.error(e))"
+    ```
+  </Accordion>
+
+  <Accordion title="Client Shows Blank Page">
+    **Check if build arguments were set:**
+    - Verify `VITE_BACKEND_URL` points to correct server
+    - Check browser console for errors
+    - Ensure Clerk public key is valid
+
+    **Inspect built files:**
+    ```bash
+    docker-compose exec client ls -la /usr/share/nginx/html
+    ```
+
+    **Check Nginx logs:**
+    ```bash
+    docker-compose logs client
+    ```
+  </Accordion>
+
+  <Accordion title="API Requests Failing">
+    **Check CORS configuration:**
+    - Ensure `FRONTEND_URL` in server `.env` matches client URL
+    - Verify `VITE_BACKEND_URL` in client build matches server URL
+
+    **Test server directly:**
+    ```bash
+    curl http://localhost:3000/
+    # Should return: "API Working"
+    ```
+
+    **Check network connectivity:**
+    ```bash
+    docker-compose exec client wget -O- http://server:3000/
+    ```
+  </Accordion>
+
+  <Accordion title="Container Keeps Restarting">
+    **Check restart logs:**
+    ```bash
+    docker-compose ps
+    docker-compose logs --tail=50 server
+    ```
+
+    **Common causes:**
+    - Application crash on startup
+    - Failed dependency initialization (DB, Cloudinary)
+    - Invalid configuration
+
+    **Disable auto-restart for debugging:**
+    ```yaml
+    services:
+      server:
+        restart: "no"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="CI/CD Pipeline" icon="circle-play" href="/deployment/ci-cd">
+    Automate builds with GitHub Actions
+  </Card>
+  <Card title="Environment Variables" icon="key" href="/deployment/environment-variables">
+    Complete configuration reference
+  </Card>
+</CardGroup>

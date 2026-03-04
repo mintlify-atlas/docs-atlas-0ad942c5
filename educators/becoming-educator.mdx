@@ -1,0 +1,210 @@
+---
+title: Becoming an Educator
+description: Start your journey as a course creator on SkillRise
+---
+
+## Overview
+
+SkillRise enables anyone with expertise to become an educator and share knowledge with students worldwide. The platform provides all the tools you need to create, publish, and monetize your courses.
+
+## Prerequisites
+
+Before you can start creating courses, you need:
+
+- A verified SkillRise account
+- Subject matter expertise in your teaching area
+- Content ready for at least one complete course
+- Video content hosted on supported platforms (YouTube, Vimeo, or direct links)
+
+## Getting Started
+
+### 1. Account Setup
+
+Every SkillRise user account has access to educator features. Simply navigate to the educator dashboard to begin creating courses.
+
+<Note>
+Your user profile information (name, email, profile image) is managed through Clerk authentication and will be displayed on your courses.
+</Note>
+
+### 2. Accessing the Educator Dashboard
+
+The educator interface provides a dedicated workspace for managing your teaching activities:
+
+```
+/educator/dashboard - Overview of your performance
+/educator/add-course - Create new courses
+/educator/courses - Manage existing courses
+/educator/students - View enrolled students
+```
+
+<Card title="Educator Layout" icon="layout">
+The educator interface features:
+- **Navigation Sidebar** - Quick access to all educator functions
+- **Top Navbar** - Account settings and notifications
+- **Main Content Area** - Your workspace for course management
+- **Footer** - Additional resources and links
+</Card>
+
+## Educator Dashboard Features
+
+Once you access the educator area, you'll see:
+
+### Key Metrics
+
+<CardGroup cols={3}>
+  <Card title="Total Enrollments" icon="users">
+    Track how many students have enrolled across all your courses
+  </Card>
+  <Card title="Published Courses" icon="book">
+    See your total number of active courses on the platform
+  </Card>
+  <Card title="Total Earnings" icon="indian-rupee-sign">
+    Monitor your revenue from course sales (in ₹)
+  </Card>
+</CardGroup>
+
+### Latest Enrollments Table
+
+View recent student enrollments with:
+- Student name and profile picture
+- Course they enrolled in
+- Real-time updates as new students join
+
+### Quiz Insights (Optional)
+
+If you've added quizzes to your course chapters, you'll see:
+- Average performance percentage per chapter
+- Number of quiz attempts
+- Student distribution across performance categories:
+  - **Needs Review** (struggling students)
+  - **On Track** (progressing students)
+  - **Mastered** (high performers)
+
+## Understanding the Data Structure
+
+When you create courses, the backend stores your educator ID with each course:
+
+```javascript
+const course = {
+  educatorId: req.auth.userId, // Your unique user ID
+  courseTitle: "Your Course Title",
+  courseDescription: "Markdown-formatted description",
+  coursePrice: 4999, // Price in ₹
+  discount: 20, // Percentage discount
+  isPublished: true,
+  courseContent: [
+    {
+      chapterId: "unique-id",
+      chapterTitle: "Chapter 1: Introduction",
+      chapterOrder: 1,
+      chapterContent: [
+        {
+          lectureId: "unique-id",
+          lectureTitle: "Welcome to the Course",
+          lectureDuration: 15, // minutes
+          lectureUrl: "https://youtube.com/watch?v=...",
+          isPreviewFree: true,
+          lectureOrder: 1
+        }
+      ]
+    }
+  ],
+  totalLectures: 1,
+  totalDurationMinutes: 15,
+  enrolledStudents: [], // Student IDs
+  averageRating: 0,
+  totalRatings: 0
+}
+```
+
+<Info>
+All calculations for total lectures, duration, and enrolled student counts are handled automatically by the backend.
+</Info>
+
+## Revenue Model
+
+Your earnings are calculated based on:
+
+1. **Course Price** - Base price you set (in ₹)
+2. **Discount** - Optional percentage discount (0-100%)
+3. **Final Price** - `coursePrice - (discount × coursePrice / 100)`
+4. **Total Earnings** - Sum of all completed purchases
+
+```javascript
+// Example calculation
+const coursePrice = 4999
+const discount = 20
+const finalPrice = Math.floor(coursePrice - (discount * coursePrice / 100))
+// finalPrice = ₹3999
+
+// If 10 students enroll:
+const totalEarnings = 10 * finalPrice // ₹39,990
+```
+
+## API Endpoints
+
+The educator system uses these authenticated endpoints:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/educator/add-course` | POST | Create a new course |
+| `/api/educator/courses` | GET | Get all your courses |
+| `/api/educator/dashboard` | GET | Get dashboard analytics |
+| `/api/educator/enrolled-students` | GET | Get student enrollment data |
+
+<Warning>
+All educator endpoints require authentication. The `Authorization` header must include a valid JWT token from Clerk.
+</Warning>
+
+## Next Steps
+
+Now that you understand the educator platform, you're ready to:
+
+<CardGroup cols={2}>
+  <Card title="Create Your First Course" icon="plus" href="/educators/creating-courses">
+    Learn how to use the course builder
+  </Card>
+  <Card title="Manage Content" icon="list" href="/educators/managing-content">
+    Organize chapters and lectures
+  </Card>
+  <Card title="Track Analytics" icon="chart-line" href="/educators/dashboard">
+    Monitor your performance
+  </Card>
+  <Card title="View Students" icon="graduation-cap" href="/educators/student-management">
+    See who's enrolled
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Content Quality">
+    - Ensure videos are high quality (720p or better)
+    - Write clear, descriptive titles and descriptions
+    - Structure courses logically from beginner to advanced
+    - Test all video links before publishing
+  </Accordion>
+  
+  <Accordion title="Pricing Strategy">
+    - Research competitor pricing in your niche
+    - Use discounts strategically for promotions
+    - Consider value provided vs. course length
+    - Update pricing based on student feedback
+  </Accordion>
+  
+  <Accordion title="Student Engagement">
+    - Respond to student questions promptly
+    - Update courses with new content regularly
+    - Monitor quiz insights to identify struggling students
+    - Maintain consistent upload schedules
+  </Accordion>
+</AccordionGroup>
+
+## Support
+
+If you encounter issues or have questions:
+
+- Check the documentation for detailed guides
+- Review the dashboard for real-time metrics
+- Ensure all required fields are completed when creating courses
+- Verify video URLs are accessible and properly formatted

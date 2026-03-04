@@ -1,0 +1,400 @@
+---
+title: 'Enrolling in Courses'
+description: 'Learn about the course enrollment flow, from viewing details to completing payment'
+icon: 'credit-card'
+---
+
+## Overview
+
+The enrollment process guides students from course discovery through payment to access. SkillRise uses a streamlined flow that provides detailed course information, transparent pricing, and secure payment processing via Razorpay.
+
+## Course Details Page
+
+The course details page (`/course/{courseId}`) is the primary enrollment touchpoint. It combines comprehensive course information with a persistent enrollment card.
+
+### Page Structure
+
+<img src="/images/student/course-details-hero.png" alt="Course details page showing hero section with description and purchase card" />
+
+#### Hero Section
+
+The top section uses a gradient background and contains:
+
+**Left Column (Content)**
+- Breadcrumb navigation (Home / Explore / Course Title)
+- Course title (large, bold heading)
+- Course description (Markdown-rendered)
+- Rating display (numeric + 5 stars + count)
+- Total enrolled students
+- Educator name (clickable link)
+
+**Right Column (Enrollment Card)**
+- Course thumbnail or preview video
+- Countdown timer ("5 days left at this price")
+- Pricing display with discount
+- Quick stats (rating, duration, lesson count)
+- Primary enrollment CTA button
+- "What's included" feature list
+
+### Pricing Display
+
+Prices are calculated and displayed with discount logic:
+
+```javascript
+const discountedPrice = (
+  coursePrice - (discount * coursePrice) / 100
+).toFixed(2)
+```
+
+<CodeGroup>
+```jsx Example
+// Original price: ₹2,999
+// Discount: 30%
+// Display:
+<div>
+  <p className="text-3xl font-bold">₹2,099.30</p>
+  <p className="line-through text-gray-400">₹2,999</p>
+  <span className="badge">30% off</span>
+</div>
+```
+</CodeGroup>
+
+### What's Included
+
+Standard benefits displayed for all courses:
+
+<Check>Lifetime access with free updates</Check>
+<Check>Step-by-step, hands-on project guidance</Check>
+<Check>Downloadable resources and source code</Check>
+<Check>Quizzes to test your knowledge</Check>
+<Check>Certificate of completion</Check>
+
+## Course Structure Section
+
+Below the hero, an expandable accordion displays the complete course curriculum:
+
+### Chapter Accordion
+
+Each chapter shows:
+- **Chapter title** - Descriptive section name
+- **Lecture count** - Number of videos in chapter
+- **Expand/collapse arrow** - Toggle chapter contents
+
+### Lecture List
+
+When expanded, chapters reveal individual lectures:
+
+```jsx
+<div className="lecture-item">
+  <PlayIcon /> {/* Visual indicator */}
+  <span>{lecture.lectureTitle}</span>
+  {lecture.isPreviewFree && (
+    <button>Preview</button> {/* Free preview CTA */}
+  )}
+  <span>{formatDuration(lecture.lectureDuration)}</span>
+</div>
+```
+
+### Preview Functionality
+
+Lectures marked as free preview can be watched before enrollment:
+
+1. Click "Preview" button on any free lecture
+2. ReactPlayer loads in the purchase card thumbnail area
+3. Full video controls available
+4. Students can preview before purchasing
+
+<img src="/images/student/lecture-preview.png" alt="Free lecture preview playing in course details card" />
+
+## Enrollment States
+
+### Unauthenticated Users
+
+When not logged in:
+- All course details visible
+- Clicking "Enrol Now" shows toast: "Login to Enroll"
+- User redirected to authentication flow
+
+### Already Enrolled
+
+For enrolled students:
+- Button text changes to "Resume Learning"
+- Clicking navigates directly to player: `/player/{courseId}`
+- No payment flow shown
+- Pricing section hidden
+
+### New Enrollment
+
+For authenticated, non-enrolled users:
+- Full pricing visible with discount
+- "Enrol Now" button enabled
+- Clicking navigates to checkout flow
+
+## Checkout Flow
+
+### Checkout Page
+
+The checkout page (`/checkout/{courseId}`) provides a simple, focused payment interface:
+
+<img src="/images/student/checkout-page.png" alt="Checkout page with Razorpay payment button" />
+
+Page elements:
+- **Back button** - Returns to course details
+- **Page title** - "Complete your purchase"
+- **Course name** - Confirms which course is being purchased
+- **Bank icon** - Visual payment indicator
+- **Explanation text** - "You'll be redirected to Razorpay..."
+- **Pay button** - Primary CTA to open Razorpay
+
+### Authentication Check
+
+The checkout page enforces authentication:
+
+```javascript
+useEffect(() => {
+  if (userData === null) {
+    navigate('/', { replace: true })
+  }
+}, [userData])
+```
+
+Unauthenticated users are automatically redirected to home.
+
+## Razorpay Integration
+
+### Payment Flow Architecture
+
+<Steps>
+  <Step title="Create Purchase Record">
+    Backend creates Purchase document and Razorpay order
+    
+    ```javascript
+    POST /api/user/purchase
+    { courseId }
+    
+    Returns: { purchaseId, orderId, keyId }
+    ```
+  </Step>
+  
+  <Step title="Load Razorpay SDK">
+    Frontend dynamically loads Razorpay checkout script:
+    
+    ```javascript
+    const script = document.createElement('script')
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+    ```
+  </Step>
+  
+  <Step title="Open Payment Modal">
+    Configure and display Razorpay checkout:
+    
+    ```javascript
+    const rzp = new window.Razorpay({
+      key: keyId,
+      currency: 'INR',
+      name: 'SkillRise',
+      description: courseTitle,
+      order_id: orderId,
+      handler: verifyPayment,
+      theme: { color: '#14b8a6' }
+    })
+    rzp.open()
+    ```
+  </Step>
+  
+  <Step title="Payment Success Handler">
+    Razorpay calls handler with payment details:
+    
+    ```javascript
+    handler: (response) => {
+      // Verify signature
+      POST /api/user/verify-razorpay
+      {
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature,
+        purchaseId
+      }
+      
+      // Navigate immediately (fire-and-forget)
+      navigate(`/payment/success/${courseId}`)
+    }
+    ```
+  </Step>
+  
+  <Step title="Webhook Backup">
+    Razorpay webhook ensures enrollment even if client-side verification fails:
+    - Network drop after payment
+    - Browser closed during verification
+    - Any client-side failure
+    
+    Webhook completes enrollment reliably.
+  </Step>
+</Steps>
+
+### Payment States
+
+<Tabs>
+  <Tab title="Loading">
+    Button shows: "Opening Razorpay…"
+    
+    Button disabled, user waits for modal
+  </Tab>
+  <Tab title="Modal Open">
+    Razorpay modal overlay covers page
+    
+    User completes payment in modal
+  </Tab>
+  <Tab title="Modal Dismissed">
+    User closed modal without paying
+    
+    Button re-enables, returns to "Pay with Razorpay"
+  </Tab>
+  <Tab title="Payment Complete">
+    Modal closes, verification starts
+    
+    Navigate to success page
+  </Tab>
+</Tabs>
+
+## Payment Success Page
+
+The success page (`/payment/success/{courseId}`) confirms enrollment:
+
+<img src="/images/student/payment-success.png" alt="Payment success page with course details and countdown" />
+
+### Page Elements
+
+- **Success checkmark** - Large teal checkmark icon
+- **"Payment successful!" heading** - Confirmation message
+- **Course card** - Shows purchased course with thumbnail
+- **Price display** - Final amount paid
+- **"Start Learning" CTA** - Primary action button
+- **Auto-redirect countdown** - "Redirecting in Xs"
+- **"View all my courses" link** - Secondary action
+
+### Auto-redirect Logic
+
+```javascript
+const REDIRECT_AFTER = 6 // seconds
+
+useEffect(() => {
+  if (countdown === 0) {
+    window.location.href = `/player/${courseId}`
+    return
+  }
+  const timer = setTimeout(() => 
+    setCountdown(c => c - 1), 1000
+  )
+  return () => clearTimeout(timer)
+}, [countdown])
+```
+
+Gives webhook time to process before player page checks enrollment.
+
+## Enrollment Guard Pattern
+
+The player page implements a retry pattern for race conditions:
+
+```javascript
+useEffect(() => {
+  if (courseData) return // Already enrolled
+  
+  // Retry: Webhook may still be processing
+  const retryId = setTimeout(fetchUserEnrolledCourses, 3000)
+  
+  // Give up after 10s
+  const giveUpId = setTimeout(() => {
+    toast.error('Enrollment not confirmed. Please contact support.')
+    navigate(`/course/${courseId}`)
+  }, 10000)
+  
+  return () => {
+    clearTimeout(retryId)
+    clearTimeout(giveUpId)
+  }
+}, [courseData])
+```
+
+Ensures students can access course even with webhook delays.
+
+## Error Handling
+
+<AccordionGroup>
+  <Accordion title="SDK Load Failure">
+    If Razorpay script fails to load:
+    
+    ```javascript
+    toast.error('Failed to load Razorpay. Please try again.')
+    setLoading(false)
+    // Button re-enables, user can retry
+    ```
+  </Accordion>
+  
+  <Accordion title="Order Creation Failed">
+    Backend returns error when creating order:
+    
+    ```javascript
+    if (!data.success) {
+      toast.error(data.message)
+      setLoading(false)
+      return
+    }
+    ```
+    
+    Common causes: Already enrolled, course not found, server error
+  </Accordion>
+  
+  <Accordion title="Payment Failed">
+    User's payment is declined by bank:
+    - Razorpay modal shows error
+    - User can retry with different card
+    - Modal remains open for retry
+  </Accordion>
+  
+  <Accordion title="Verification Failed">
+    Client-side verification call fails:
+    - Webhook will still complete enrollment
+    - User may need to refresh to see course
+    - Success page still displays
+  </Accordion>
+</AccordionGroup>
+
+## Security Measures
+
+<Warning>
+All payment verification uses Razorpay signature validation to prevent payment tampering. Never trust client-side payment data without server-side verification.
+</Warning>
+
+Signature verification:
+```javascript
+const hmac = crypto.createHmac('sha256', razorpayKeySecret)
+hmac.update(orderId + '|' + paymentId)
+const generatedSignature = hmac.digest('hex')
+
+if (generatedSignature !== razorpay_signature) {
+  throw new Error('Invalid payment signature')
+}
+```
+
+## Mobile Responsiveness
+
+### Course Details Mobile Layout
+
+- Hero columns stack vertically
+- Purchase card becomes full-width
+- Breadcrumb text truncates
+- Touch-friendly buttons (48px height)
+
+### Checkout Mobile Experience
+
+- Razorpay modal is mobile-optimized
+- UPI payments supported
+- Wallets and net banking available
+- Back button easy to reach
+
+## Related Features
+
+- [Browsing Courses](/students/browsing-courses) - Course discovery
+- [Learning Experience](/students/learning-experience) - Post-enrollment experience
+- [Progress Tracking](/students/progress-tracking) - Enrollment management

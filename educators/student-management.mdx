@@ -1,0 +1,741 @@
+---
+title: Student Management
+description: View and track enrolled students across your courses
+---
+
+## Overview
+
+The Student Management page provides a comprehensive view of all students enrolled in your courses, with search functionality and enrollment details. Access it at `/educator/students`.
+
+## Page Layout
+
+The students page features:
+
+<CardGroup cols={2}>
+  <Card title="Header Summary" icon="info-circle">
+    Total enrollment count across all courses
+  </Card>
+  <Card title="Search Bar" icon="magnifying-glass">
+    Filter students by name or course title
+  </Card>
+  <Card title="Students Table" icon="table">
+    Detailed list of all enrollments
+  </Card>
+  <Card title="Responsive Design" icon="mobile">
+    Adapts to mobile, tablet, and desktop
+  </Card>
+</CardGroup>
+
+## Accessing Student Data
+
+Navigate to the students page:
+
+```bash
+/educator/students
+```
+
+Or click **"Students Enrolled"** from the educator sidebar navigation.
+
+## Data Fetching
+
+Student enrollment data is fetched on page load:
+
+```javascript
+const fetchEnrolledStudents = async () => {
+  try {
+    const token = await getToken()
+    const { data } = await axios.get(
+      backendUrl + '/api/educator/enrolled-students',
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    )
+    if (data.success) {
+      setEnrolledStudents(data.enrolledStudents.reverse())
+      // Reversed to show most recent first
+    }
+  } catch (error) {
+    toast.error(error.message)
+  }
+}
+
+useEffect(() => {
+  if (isEducator) {
+    fetchEnrolledStudents()
+  }
+}, [isEducator])
+```
+
+<Note>
+Data is reversed (`.reverse()`) to display the most recent enrollments first.
+</Note>
+
+## Backend Implementation
+
+The server provides detailed enrollment data:
+
+```javascript
+// educatorController.js - getEnrolledStudentsData
+export const getEnrolledStudentsData = async (req, res) => {
+  try {
+    const educatorId = req.auth.userId
+    
+    // Get all educator's courses
+    const courses = await Course.find({ educatorId })
+    const courseIds = courses.map((course) => course._id)
+    
+    // Find all completed purchases for these courses
+    const purchases = await Purchase.find({
+      courseId: { $in: courseIds },
+      status: 'completed'
+    })
+      .populate('userId', 'name imageUrl')
+      .populate('courseId', 'courseTitle')
+    
+    // Map to enrollment format
+    const enrolledStudents = purchases.map((purchase) => ({
+      student: purchase.userId,
+      courseTitle: purchase.courseId.courseTitle,
+      purchaseDate: purchase.createdAt
+    }))
+    
+    res.json({
+      success: true,
+      enrolledStudents
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'An unexpected error occurred'
+    })
+  }
+}
+```
+
+<Info>
+Only **completed** purchases are included. Pending or failed transactions don't show up in the student list.
+</Info>
+
+## Enrollment Data Structure
+
+### Response Format
+
+```javascript
+const enrolledStudents = [
+  {
+    student: {
+      _id: "user_abc123",
+      name: "John Doe",
+      imageUrl: "https://img.clerk.com/..."
+    },
+    courseTitle: "React Fundamentals",
+    purchaseDate: "2024-01-15T10:30:00.000Z"
+  },
+  {
+    student: {
+      _id: "user_xyz789",
+      name: "Jane Smith",
+      imageUrl: "https://img.clerk.com/..."
+    },
+    courseTitle: "Advanced JavaScript",
+    purchaseDate: "2024-01-14T14:20:00.000Z"
+  }
+]
+```
+
+### Field Descriptions
+
+<ResponseField name="student" type="object" required>
+  Student information from User model
+  
+  <Expandable title="Student Properties">
+    <ResponseField name="_id" type="string">
+      Unique user ID from Clerk authentication
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      Student's full name
+    </ResponseField>
+    
+    <ResponseField name="imageUrl" type="string">
+      Profile picture URL from Clerk
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="courseTitle" type="string" required>
+  Name of the course the student enrolled in
+</ResponseField>
+
+<ResponseField name="purchaseDate" type="date" required>
+  ISO 8601 timestamp of when the purchase was completed
+</ResponseField>
+
+## Table Structure
+
+The students table displays four columns:
+
+| Column | Description | Visible |
+|--------|-------------|----------|
+| **#** | Sequential row number (1, 2, 3...) | Hidden on mobile (sm:) |
+| **Student** | Profile picture + name | Always visible |
+| **Course** | Course title (truncated if long) | Always visible |
+| **Enrolled On** | Formatted purchase date | Hidden on mobile (md:) |
+
+### Table Implementation
+
+```jsx
+<table className="w-full">
+  <thead>
+    <tr className="bg-gray-50/70 dark:bg-gray-700/40">
+      <th className="hidden sm:table-cell">#</th>
+      <th>Student</th>
+      <th>Course</th>
+      <th className="hidden md:table-cell">Enrolled On</th>
+    </tr>
+  </thead>
+  <tbody>
+    {filtered.map((item, index) => (
+      <tr key={index} className="hover:bg-gray-50/50">
+        <td className="hidden sm:table-cell">
+          {index + 1}
+        </td>
+        <td>
+          <div className="flex items-center gap-3">
+            <img
+              src={item.student.imageUrl}
+              alt=""
+              className="w-8 h-8 rounded-full"
+            />
+            <span className="font-semibold">
+              {item.student.name}
+            </span>
+          </div>
+        </td>
+        <td className="max-w-xs truncate">
+          {item.courseTitle}
+        </td>
+        <td className="hidden md:table-cell">
+          {new Date(item.purchaseDate).toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+          })}
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+```
+
+## Search Functionality
+
+Filter students in real-time by name or course:
+
+### Search Implementation
+
+```javascript
+const [search, setSearch] = useState('')
+
+const filtered = enrolledStudents.filter((item) =>
+  item.student.name.toLowerCase().includes(search.toLowerCase()) ||
+  item.courseTitle.toLowerCase().includes(search.toLowerCase())
+)
+```
+
+### Search Input
+
+```jsx
+<div className="relative">
+  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400">
+    <circle cx="11" cy="11" r="8" />
+    <path d="m21 21-4.35-4.35" />
+  </svg>
+  <input
+    type="text"
+    placeholder="Search student or course…"
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+    className="pl-9 pr-4 py-2.5 text-sm border rounded-xl w-full sm:w-64"
+  />
+</div>
+```
+
+### Search Behavior
+
+<Tabs>
+  <Tab title="Name Search">
+    Search by student name (case-insensitive)
+    
+    ```javascript
+    // Input: "john"
+    // Matches: "John Doe", "Johnny Smith", "john@example.com"
+    item.student.name.toLowerCase().includes('john')
+    ```
+  </Tab>
+  
+  <Tab title="Course Search">
+    Search by course title (case-insensitive)
+    
+    ```javascript
+    // Input: "react"
+    // Matches: "React Fundamentals", "Advanced React Patterns"
+    item.courseTitle.toLowerCase().includes('react')
+    ```
+  </Tab>
+  
+  <Tab title="Combined">
+    Search matches either name OR course
+    
+    ```javascript
+    // Input: "javascript"
+    // Shows all students in JavaScript courses
+    // AND any students with "JavaScript" in their name
+    nameMatch || courseMatch
+    ```
+  </Tab>
+</Tabs>
+
+<Info>
+Search is performed client-side for instant results without API calls.
+</Info>
+
+## Date Formatting
+
+Enrollment dates are formatted for readability:
+
+```javascript
+new Date(item.purchaseDate).toLocaleDateString('en-IN', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric'
+})
+
+// Examples:
+// 2024-01-15T10:30:00.000Z → 15 Jan 2024
+// 2024-12-25T18:45:00.000Z → 25 Dec 2024
+```
+
+### Localization
+
+<ParamField path="locale" type="string" default="en-IN">
+  Using 'en-IN' formats dates for Indian audience:
+  - Day first (15 Jan)
+  - Abbreviated month names
+  - Full 4-digit year
+</ParamField>
+
+<Tabs>
+  <Tab title="Indian Format (en-IN)">
+    ```
+    15 Jan 2024
+    3 Mar 2024
+    28 Dec 2023
+    ```
+  </Tab>
+  <Tab title="US Format (en-US)">
+    ```
+    Jan 15, 2024
+    Mar 3, 2024
+    Dec 28, 2023
+    ```
+  </Tab>
+  <Tab title="ISO Format">
+    ```
+    2024-01-15
+    2024-03-03
+    2023-12-28
+    ```
+  </Tab>
+</Tabs>
+
+## Empty States
+
+Graceful handling when no students are found:
+
+### No Enrollments
+
+```jsx
+{enrolledStudents.length === 0 && (
+  <div className="py-14 text-center">
+    <p className="text-gray-400 text-sm">No enrollments yet</p>
+  </div>
+)}
+```
+
+### No Search Results
+
+```jsx
+{filtered.length === 0 && search && (
+  <div className="py-14 text-center">
+    <p className="text-gray-400 text-sm">
+      No results for "{search}"
+    </p>
+  </div>
+)}
+```
+
+## Loading State
+
+Skeleton UI while data is fetching:
+
+```jsx
+{!enrolledStudents ? (
+  <div className="space-y-6">
+    {/* Header skeletons */}
+    <div className="flex justify-between">
+      <div className="space-y-1.5">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-32" />
+      </div>
+      <Skeleton className="h-10 w-64 rounded-xl" />
+    </div>
+    
+    {/* Table row skeletons */}
+    <div className="divide-y">
+      {[...Array(5)].map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-6 py-3.5">
+          <Skeleton className="w-8 h-8 rounded-full" />
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-4 w-44 ml-6" />
+          <Skeleton className="h-4 w-20 ml-auto hidden md:block" />
+        </div>
+      ))}
+    </div>
+  </div>
+) : (
+  // ... actual content
+)}
+```
+
+<Note>
+The loading state matches the layout of the actual content for a seamless transition.
+</Note>
+
+## Responsive Breakpoints
+
+### Mobile (below 640px)
+- Only student name and course title visible
+- Sequential numbers hidden
+- Enrollment dates hidden
+- Search bar full width
+
+### Tablet (640px-767px)
+- Sequential numbers appear
+- Enrollment dates still hidden
+- Search bar maintains width
+
+### Desktop (≥768px)
+- All columns visible
+- Full table functionality
+- Optimal spacing and layout
+
+```jsx
+// Responsive class examples
+<th className="hidden sm:table-cell">      // Shows at 640px+
+  #
+</th>
+
+<th className="hidden md:table-cell">      // Shows at 768px+
+  Enrolled On
+</th>
+```
+
+## Duplicate Enrollments
+
+### How Duplicates Occur
+
+A single student can appear multiple times if they:
+
+1. **Enrolled in multiple courses**
+   ```javascript
+   [
+     { student: "John", course: "React Basics" },
+     { student: "John", course: "Advanced React" }
+   ]
+   ```
+
+2. **Purchased the same course multiple times** (rare, but possible if refund/re-purchase occurred)
+
+<Info>
+Each row represents a **purchase transaction**, not a unique student. The same student can have multiple rows.
+</Info>
+
+## Total Count
+
+The header displays the total enrollment count:
+
+```jsx
+<p className="text-sm text-gray-500">
+  {enrolledStudents.length} total enrollment
+  {enrolledStudents.length !== 1 ? 's' : ''}
+</p>
+
+// Examples:
+// "1 total enrollment"
+// "25 total enrollments"
+```
+
+### Count vs. Unique Students
+
+<Tabs>
+  <Tab title="Total Enrollments">
+    **What's displayed on this page**
+    
+    Count of all purchase records (may include same student multiple times)
+    
+    ```javascript
+    enrolledStudents.length // 100 enrollments
+    ```
+  </Tab>
+  
+  <Tab title="Unique Students">
+    **Not currently tracked**
+    
+    To get unique students, you'd need to deduplicate by student ID:
+    
+    ```javascript
+    const uniqueStudents = new Set(
+      enrolledStudents.map(item => item.student._id)
+    )
+    const uniqueCount = uniqueStudents.size // 75 unique students
+    ```
+  </Tab>
+</Tabs>
+
+## Sorting and Ordering
+
+### Current Order
+
+By default, students are sorted by **most recent enrollment first**:
+
+```javascript
+setEnrolledStudents(data.enrolledStudents.reverse())
+// Reverses the array to show newest first
+```
+
+### Custom Sorting (Not Implemented)
+
+To add sortable columns:
+
+```javascript
+const [sortBy, setSortBy] = useState('date')
+const [sortOrder, setSortOrder] = useState('desc')
+
+const sorted = [...filtered].sort((a, b) => {
+  switch (sortBy) {
+    case 'name':
+      return sortOrder === 'asc'
+        ? a.student.name.localeCompare(b.student.name)
+        : b.student.name.localeCompare(a.student.name)
+    case 'course':
+      return sortOrder === 'asc'
+        ? a.courseTitle.localeCompare(b.courseTitle)
+        : b.courseTitle.localeCompare(a.courseTitle)
+    case 'date':
+    default:
+      return sortOrder === 'asc'
+        ? new Date(a.purchaseDate) - new Date(b.purchaseDate)
+        : new Date(b.purchaseDate) - new Date(a.purchaseDate)
+  }
+})
+```
+
+## API Reference
+
+### Get Enrolled Students
+
+<CodeGroup>
+
+```javascript Request
+GET /api/educator/enrolled-students
+
+Headers:
+  Authorization: Bearer <jwt_token>
+```
+
+```json Response
+{
+  "success": true,
+  "enrolledStudents": [
+    {
+      "student": {
+        "_id": "user_abc123",
+        "name": "John Doe",
+        "imageUrl": "https://img.clerk.com/..."
+      },
+      "courseTitle": "React Fundamentals",
+      "purchaseDate": "2024-01-15T10:30:00.000Z"
+    },
+    {
+      "student": {
+        "_id": "user_xyz789",
+        "name": "Jane Smith",
+        "imageUrl": "https://img.clerk.com/..."
+      },
+      "courseTitle": "Advanced JavaScript",
+      "purchaseDate": "2024-01-14T14:20:00.000Z"
+    }
+  ]
+}
+```
+
+</CodeGroup>
+
+### Error Handling
+
+```javascript
+try {
+  const { data } = await axios.get(url, { headers })
+  if (data.success) {
+    setEnrolledStudents(data.enrolledStudents.reverse())
+  } else {
+    toast.error(data.message)
+  }
+} catch (error) {
+  toast.error(error.message)
+}
+```
+
+<Warning>
+**Common Errors:**
+- 401 Unauthorized: Invalid or expired JWT token
+- 500 Server Error: Database connection issues
+- Network Error: Backend server unreachable
+</Warning>
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Track Course Popularity">
+    Use the search to filter by course name and see how many students enrolled in each course:
+    
+    1. Search for "React Fundamentals"
+    2. Count visible rows
+    3. Compare with other courses
+    
+    This helps identify your most popular courses.
+  </Accordion>
+  
+  <Accordion title="Monitor Recent Growth">
+    Since students are sorted by date (newest first), you can quickly see:
+    
+    - How many enrollments in the last day/week
+    - Whether marketing campaigns are effective
+    - Enrollment spikes after course updates
+  </Accordion>
+  
+  <Accordion title="Identify Repeat Students">
+    Search for a student's name to see all their enrollments:
+    
+    1. Type student name in search
+    2. View all courses they've purchased
+    3. Identify loyal/engaged students
+    
+    These students might be good candidates for testimonials or advanced courses.
+  </Accordion>
+  
+  <Accordion title="Export Data (Future Enhancement)">
+    Currently not available, but you could add:
+    
+    - CSV export button
+    - Excel spreadsheet generation
+    - Email list extraction
+    - Revenue reports per student
+  </Accordion>
+</AccordionGroup>
+
+## Privacy Considerations
+
+<Warning>
+**Student Data Protection**
+</Warning>
+
+The student list contains personal information:
+
+- Full names
+- Profile pictures
+- Purchase history
+
+**Best Practices:**
+
+<Check>Do not share student data publicly</Check>
+<Check>Use HTTPS for all API requests</Check>
+<Check>Respect student privacy in communications</Check>
+<Check>Follow GDPR/data protection regulations</Check>
+
+## Future Enhancements
+
+Potential features to add:
+
+<CardGroup cols={2}>
+  <Card title="Pagination" icon="list">
+    Handle large student lists (100+ enrollments)
+  </Card>
+  <Card title="Export to CSV" icon="file-csv">
+    Download student data for analysis
+  </Card>
+  <Card title="Email Students" icon="envelope">
+    Send announcements or updates directly
+  </Card>
+  <Card title="Progress Tracking" icon="chart-line">
+    See which students completed the course
+  </Card>
+  <Card title="Refund Management" icon="money-bill-wave">
+    Handle refund requests and disputes
+  </Card>
+  <Card title="Student Notes" icon="note-sticky">
+    Add private notes about specific students
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Students not appearing">
+    **Possible causes:**
+    - Purchases are still pending (status ≠ 'completed')
+    - Database sync delay
+    - Filter/search hiding results
+    
+    **Solution:**
+    - Check Purchase model for status
+    - Clear search filter
+    - Refresh the page
+  </Accordion>
+  
+  <Accordion title="Duplicate students showing">
+    **This is expected behavior**
+    
+    Each row is a purchase record, not a unique student. Same student can appear multiple times if they bought multiple courses.
+    
+    To see unique students, you'd need to implement deduplication logic.
+  </Accordion>
+  
+  <Accordion title="Search not working">
+    **Check:**
+    - Search is case-insensitive, but must match part of name/course
+    - Ensure no typos in search term
+    - Try searching just first name or partial course title
+  </Accordion>
+  
+  <Accordion title="Dates showing incorrectly">
+    **Possible causes:**
+    - Timezone differences
+    - Browser locale settings
+    
+    **Solution:**
+    Date is formatted to 'en-IN' locale. To change, modify the `toLocaleDateString` locale parameter.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="View Dashboard" icon="chart-line" href="/educators/dashboard">
+    See overall metrics and quiz insights
+  </Card>
+  <Card title="Manage Courses" icon="book" href="/educators/managing-content">
+    Update your course content
+  </Card>
+</CardGroup>

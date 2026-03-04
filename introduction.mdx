@@ -1,0 +1,372 @@
+---
+title: Introduction to SkillRise
+description: A full-stack e-learning platform with AI-powered features, built for students and educators
+---
+
+## Overview
+
+SkillRise is a modern e-learning platform that connects students with educators through an intuitive, feature-rich environment. Built with React, Node.js, and MongoDB, it provides a complete solution for online education with AI-powered learning assistance, payment processing, progress tracking, and community engagement.
+
+<Note>
+  SkillRise supports three distinct user roles: **Students** (learners), **Educators** (course creators), and **Admins** (platform managers).
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="AI-Powered Learning" icon="brain">
+    Groq-powered chatbot for learning support and personalized roadmap generation using LLaMA models
+  </Card>
+  <Card title="Secure Payments" icon="credit-card">
+    Integrated Stripe checkout with webhook-based order fulfillment
+  </Card>
+  <Card title="Progress Tracking" icon="chart-line">
+    Real-time analytics with time tracking, course progress, and quiz performance insights
+  </Card>
+  <Card title="Community Features" icon="users">
+    Discussion groups, threaded posts, upvotes, and replies for collaborative learning
+  </Card>
+</CardGroup>
+
+## Platform Capabilities
+
+### For Students
+
+- **Course Catalog** — Browse, search, and filter courses by category with real-time search
+- **Video Player** — Chapter-based course player with automatic progress tracking
+- **AI Chat Assistant** — Get instant answers and learning support powered by Groq's LLaMA models
+- **Personalized Roadmaps** — AI-generated learning paths based on your profile and goals
+- **Interactive Quizzes** — Auto-generated chapter quizzes with detailed explanations
+- **Analytics Dashboard** — Track time spent, courses completed, and quiz scores
+- **Community Engagement** — Join groups, create posts, and participate in discussions
+- **Certificates** — Earn PDF certificates upon course completion
+- **Dark Mode** — Full dark/light theme with system preference detection
+
+### For Educators
+
+- **Course Builder** — Create multi-chapter courses with rich text descriptions
+- **Media Management** — Upload thumbnails and video content via Cloudinary integration
+- **Educator Dashboard** — View enrollment statistics, revenue tracking, and student analytics
+- **Student Insights** — See enrolled students per course with detailed engagement metrics
+- **Application System** — Apply to become an educator through the platform
+
+### For Administrators
+
+- **Platform Analytics** — Dashboard with comprehensive stats including revenue charts and enrollment trends
+- **Course Management** — View all courses with educator info, enrollment counts, and revenue data
+- **User Management** — Separate views for students and educators with enrollment and creation metrics
+- **Purchase History** — Full transaction history with status filtering (Completed/Pending/Failed)
+- **Application Review** — Approve or reject educator applications with optional feedback
+
+## Technology Stack
+
+<CodeGroup>
+
+```json package.json (Backend)
+{
+  "dependencies": {
+    "@clerk/express": "^1.4.8",
+    "cloudinary": "^2.6.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "groq-sdk": "^0.34.0",
+    "mongoose": "^8.13.2",
+    "razorpay": "^2.9.6",
+    "stripe": "latest"
+  }
+}
+```
+
+```json package.json (Frontend)
+{
+  "dependencies": {
+    "@clerk/clerk-react": "^5.28.2",
+    "react": "^19.0.0",
+    "react-router-dom": "^7.5.1",
+    "axios": "^1.8.4",
+    "tailwindcss": "^3.4.17",
+    "recharts": "^3.7.0"
+  }
+}
+```
+
+</CodeGroup>
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 19, Vite, Tailwind CSS |
+| **Authentication** | Clerk (with webhook sync) |
+| **Payments** | Stripe (embedded checkout + webhooks) |
+| **Backend** | Node.js, Express 5 |
+| **Database** | MongoDB, Mongoose |
+| **AI** | Groq SDK (LLaMA 3.3 70B) |
+| **Media Storage** | Cloudinary |
+| **Containerization** | Docker, Docker Compose |
+| **CI/CD** | GitHub Actions |
+
+## Architecture Overview
+
+SkillRise follows a modern microservices-inspired architecture with clear separation between frontend and backend:
+
+```
+skillrise/
+├── client/                  # React + Vite frontend
+│   ├── src/
+│   │   ├── components/      # Reusable UI components
+│   │   ├── context/         # AppContext, ThemeContext
+│   │   ├── hooks/           # useTimeTracker, custom hooks
+│   │   └── pages/
+│   │       ├── student/     # Student-facing pages
+│   │       ├── educator/    # Educator dashboard pages
+│   │       └── admin/       # Admin panel pages
+│   └── Dockerfile
+└── server/                  # Express API
+    ├── configs/             # MongoDB, Cloudinary config
+    ├── controllers/         # Route handlers
+    ├── middlewares/         # Auth guards (protectAdmin, protectEducator)
+    ├── models/              # Mongoose schemas
+    ├── routes/              # API route definitions
+    ├── services/            # Business logic (AI, payments)
+    └── Dockerfile
+```
+
+### Database Schema
+
+The platform uses MongoDB with Mongoose for data modeling. Here are the core models:
+
+<CodeGroup>
+
+```javascript models/Course.js
+const courseSchema = new mongoose.Schema(
+  {
+    courseTitle: { type: String, required: true },
+    courseDescription: { type: String, required: true },
+    courseThumbnail: { type: String },
+    coursePrice: { type: Number, required: true },
+    isPublished: { type: Boolean, default: true },
+    discount: { type: Number, required: true, min: 0, max: 100 },
+    
+    courseContent: [chapterSchema],
+    courseRatings: [{ 
+      userId: { type: String }, 
+      rating: { type: Number, min: 1, max: 5 } 
+    }],
+    
+    averageRating: { type: Number, default: 0 },
+    totalRatings: { type: Number, default: 0 },
+    totalLectures: { type: Number, default: 0 },
+    totalDurationMinutes: { type: Number, default: 0 },
+    
+    educatorId: { type: String, ref: 'User', required: true },
+    enrolledStudents: [{ type: String, ref: 'User' }],
+    totalEnrolledStudents: { type: Number, default: 0 },
+  },
+  { timestamps: true }
+)
+```
+
+```javascript models/User.js
+const userSchema = new mongoose.Schema(
+  {
+    _id: { type: String, required: true },
+    name: { type: String, required: true },
+    email: { type: String, required: true },
+    imageUrl: { type: String, required: true },
+    enrolledCourses: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Course',
+    }],
+  },
+  { timestamps: true }
+)
+```
+
+```javascript models/Quiz.js
+const quizSchema = new mongoose.Schema(
+  {
+    courseId: { type: String, required: true },
+    chapterId: { type: String, required: true },
+    chapterTitle: { type: String, default: '' },
+    courseTitle: { type: String, default: '' },
+    questions: [{
+      question: { type: String, required: true },
+      options: [{ type: String, required: true }],
+      correctIndex: { type: Number, required: true },
+      explanation: { type: String, default: '' },
+    }],
+  },
+  { timestamps: true }
+)
+
+// Unique quiz per chapter per course
+quizSchema.index({ courseId: 1, chapterId: 1 }, { unique: true })
+```
+
+</CodeGroup>
+
+## API Architecture
+
+The backend exposes RESTful APIs with role-based access control:
+
+```javascript server/server.js
+import express from 'express'
+import { clerkMiddleware } from '@clerk/express'
+import { rateLimit } from 'express-rate-limit'
+
+const app = express()
+
+// Global middleware
+app.use(helmet())
+app.use(cors({ origin: process.env.FRONTEND_URL }))
+app.use(clerkMiddleware())
+app.use(express.json())
+
+// Rate limiters for different endpoints
+const aiChatLimiter = makeLimiter(10 * 60 * 1000, 30, 'Too many requests')
+const paymentLimiter = makeLimiter(15 * 60 * 1000, 10, 'Too many payment attempts')
+const aiGenerationLimiter = makeLimiter(60 * 60 * 1000, 10, 'Too many generation requests')
+
+// Routes with specific rate limiting
+app.use('/api/admin', adminLimiter, adminRouter)
+app.use('/api/educator', educatorRouter)
+app.use('/api/user/ai-chat', aiChatLimiter, userRouter)
+app.use('/api/user/purchase', paymentLimiter, userRouter)
+app.use('/api/quiz/generate', aiGenerationLimiter, quizRouter)
+```
+
+### Authentication & Authorization
+
+SkillRise uses Clerk for authentication with custom middleware for role-based access:
+
+```javascript middlewares/authMiddleware.js
+export const protectEducator = (req, res, next) => {
+  if (!req.auth?.userId) {
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Unauthorized Access' 
+    })
+  }
+
+  const role = req.auth.sessionClaims?.metadata?.role
+
+  if (role !== 'educator') {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Unauthorized Access' 
+    })
+  }
+
+  next()
+}
+
+export const protectAdmin = (req, res, next) => {
+  // Similar implementation for admin role
+  const role = req.auth.sessionClaims?.metadata?.role
+  if (role !== 'admin') {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Unauthorized Access' 
+    })
+  }
+  next()
+}
+```
+
+## AI Integration
+
+SkillRise leverages Groq's LLaMA models for intelligent features:
+
+```javascript services/chatbot/aiChatbotService.js
+import { Groq } from 'groq-sdk'
+
+const groq = new Groq({ apiKey: process.env.GROQ_CHATBOT_API_KEY })
+
+export const generateAIResponse = async (messages) => {
+  const completion = await groq.chat.completions.create({
+    model: 'openai/gpt-oss-120b',
+    messages,
+    temperature: 0.7,
+    max_tokens: 5000,
+    top_p: 1,
+    stream: false,
+  })
+
+  return completion.choices?.[0]?.message?.content?.trim() || 
+    'No response generated.'
+}
+```
+
+<Warning>
+  The AI chatbot and roadmap generation features require a valid Groq API key. Rate limits are enforced to prevent API cost abuse (30 requests per 10 minutes for chat, 10 per hour for generation).
+</Warning>
+
+## Deployment Options
+
+SkillRise supports multiple deployment strategies:
+
+### Docker Compose (Recommended)
+
+```yaml docker-compose.yml
+services:
+  server:
+    image: pushkarverma/skillrise-server:latest
+    ports:
+      - '3000:3000'
+    env_file:
+      - ./server/.env
+    restart: unless-stopped
+
+  client:
+    image: pushkarverma/skillrise-client:latest
+    ports:
+      - '80:80'
+    depends_on:
+      - server
+    restart: unless-stopped
+```
+
+### CI/CD Pipeline
+
+The platform includes GitHub Actions workflows for automated testing and deployment:
+
+- **Build Workflow** (`.github/workflows/build.yml`) — Runs on pull requests to `main` or `dev`
+  - Frontend: ESLint, Prettier check, Vite build
+  - Backend: Prettier check, dependency audit
+
+- **Deploy Workflow** (`.github/workflows/deploy.yml`) — Runs on push to `main`
+  - Builds Docker images for client and server
+  - Pushes to Docker Hub as `latest` tags
+
+## Security Features
+
+<CardGroup cols={2}>
+  <Card title="Rate Limiting" icon="shield">
+    Granular rate limits per endpoint to prevent abuse and API cost overruns
+  </Card>
+  <Card title="Helmet.js" icon="lock">
+    Security headers to protect against common web vulnerabilities
+  </Card>
+  <Card title="Webhook Verification" icon="signature">
+    Cryptographic verification for Clerk and Stripe webhooks
+  </Card>
+  <Card title="Role-Based Access" icon="user-shield">
+    Custom middleware enforcing strict role permissions
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Get SkillRise running locally in minutes
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Explore the complete API documentation
+  </Card>
+  <Card title="Deployment Guide" icon="server" href="/deployment">
+    Deploy SkillRise to production
+  </Card>
+  <Card title="Contributing" icon="git-branch" href="/contributing">
+    Learn how to contribute to the project
+  </Card>
+</CardGroup>

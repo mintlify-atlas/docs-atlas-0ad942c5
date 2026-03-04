@@ -1,0 +1,222 @@
+---
+title: 'User Management'
+description: 'View and manage students and educators on the platform'
+icon: 'users'
+---
+
+The User Management interface provides administrators with a comprehensive view of all platform users, including students and educators.
+
+## Overview
+
+Administrators can view detailed information about all registered users, including their enrollment activity, course creation statistics, and account details.
+
+### User Types
+
+<CardGroup cols={2}>
+  <Card title="Students" icon="user-graduate">
+    Users who enroll in and take courses
+  </Card>
+  <Card title="Educators" icon="chalkboard-user">
+    Users with approved educator status who can create courses
+  </Card>
+</CardGroup>
+
+## Features
+
+### Tab Navigation
+
+Switch between user types using the tab interface:
+
+<Tabs>
+  <Tab title="Students">
+    View all users who are enrolled as students. Displays enrollment counts and account details.
+  </Tab>
+  <Tab title="Educators">
+    View all approved educators. Shows the number of courses each educator has created.
+  </Tab>
+</Tabs>
+
+### Search Functionality
+
+<Info>
+Search across user names and email addresses in real-time
+</Info>
+
+The search bar filters users dynamically as you type, matching:
+- User full names (case-insensitive)
+- Email addresses (case-insensitive)
+
+```javascript
+const filteredUsers = users.filter((u) =>
+  u.name.toLowerCase().includes(search.toLowerCase()) ||
+  u.email.toLowerCase().includes(search.toLowerCase())
+)
+```
+
+## User Information Display
+
+Each user entry shows the following information:
+
+### Student View
+
+| Column | Description |
+|--------|-------------|
+| **Student** | Name with avatar (profile image or initials) |
+| **Email** | User's registered email address |
+| **Enrolled Courses** | Number of courses the student is enrolled in |
+| **Joined** | Account creation date |
+
+### Educator View
+
+| Column | Description |
+|--------|-------------|
+| **Educator** | Name with avatar (profile image or initials) |
+| **Email** | User's registered email address |
+| **Courses Created** | Number of courses published by the educator |
+| **Joined** | Account creation date |
+
+## API Integration
+
+### GET /api/admin/users
+
+Fetches all users with enhanced statistics:
+
+```json
+{
+  "success": true,
+  "users": [
+    {
+      "_id": "user123",
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "imageUrl": "https://example.com/avatar.jpg",
+      "enrolledCount": 5,
+      "coursesCreated": 0,
+      "isEducator": false,
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+
+<Note>
+Requires admin authentication via Bearer token in the Authorization header
+</Note>
+
+## Data Processing
+
+### Role Determination
+
+The backend determines educator status by querying Clerk's user metadata:
+
+```javascript
+const roleMap = {}
+clerkResponse.data.forEach((cu) => {
+  roleMap[cu.id] = cu.publicMetadata?.role
+})
+
+usersWithStats.map((u) => ({
+  ...u,
+  isEducator: roleMap[u._id] === 'educator'
+}))
+```
+
+### Statistics Aggregation
+
+<Steps>
+  <Step title="Enrollment Count">
+    Calculated from the `enrolledCourses` array length in the User model
+  </Step>
+  <Step title="Courses Created">
+    Aggregated by grouping courses by `educatorId` and counting documents
+  </Step>
+  <Step title="User Sorting">
+    All users are sorted by `createdAt` in descending order (newest first)
+  </Step>
+</Steps>
+
+## User Interface Features
+
+### Avatar Display
+
+<Tabs>
+  <Tab title="With Image">
+    Displays the user's profile image in a circular avatar
+  </Tab>
+  <Tab title="Without Image">
+    Shows a colored circle with the user's first initial in uppercase
+  </Tab>
+</Tabs>
+
+### Responsive Design
+
+<CardGroup cols={2}>
+  <Card title="Mobile" icon="mobile">
+    Shows only name, primary metric, and joined date
+  </Card>
+  <Card title="Desktop" icon="desktop">
+    Displays all columns including email addresses and full statistics
+  </Card>
+</CardGroup>
+
+### Dark Mode
+
+Full dark mode support with:
+- Adjusted background colors
+- Border color variations
+- Text color contrast optimization
+
+## Empty States
+
+<Warning>
+When no users match the search criteria, a helpful message is displayed:
+- "No students match your search"
+- "No educators match your search"
+- "No students yet" (when no search is active)
+- "No educators yet" (when no search is active)
+</Warning>
+
+## Summary Statistics
+
+The page header displays aggregate counts:
+
+```text
+125 total · 18 educators · 107 students
+```
+
+This provides quick insight into the platform's user distribution.
+
+## Implementation Notes
+
+### Performance Optimization
+
+The user list is fetched once on component mount and filtered client-side:
+
+```javascript
+useEffect(() => {
+  const load = async () => {
+    const { data } = await axios.get(backendUrl + '/api/admin/users', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (data.success) setUsers(data.users)
+  }
+  load()
+}, [])
+```
+
+### Date Formatting
+
+Joined dates are formatted using the Indian locale:
+
+```javascript
+const fmt = (d) => new Date(d).toLocaleDateString('en-IN', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric'
+})
+// Example: "15 Jan 2024"
+```
+
+<Tip>
+Use the search functionality to quickly locate specific users by name or email during support inquiries.
+</Tip>

@@ -1,0 +1,480 @@
+---
+title: 'Cloudinary Media Upload'
+description: 'Configure Cloudinary for course thumbnails and media uploads'
+icon: 'cloud-arrow-up'
+---
+
+## Overview
+
+SkillRise uses [Cloudinary](https://cloudinary.com) for media asset management. Educators can upload course thumbnails and other media files, which are stored and optimized by Cloudinary.
+
+## Features
+
+- **Image uploads**: Course thumbnails and profile pictures
+- **Automatic optimization**: Cloudinary optimizes images for web delivery
+- **CDN delivery**: Fast global content delivery
+- **Transformations**: Resize, crop, and format images on-the-fly
+- **Secure uploads**: Signed upload requests
+
+## Environment Variables
+
+Add these to your `server/.env` file:
+
+```env server/.env
+CLOUDINARY_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_SECRET_KEY=your_api_secret
+```
+
+<Note>
+Get your credentials from the [Cloudinary Console](https://console.cloudinary.com). They're displayed on your dashboard home page.
+</Note>
+
+## Setup Instructions
+
+<Steps>
+  <Step title="Create Cloudinary Account">
+    1. Go to [Cloudinary](https://cloudinary.com)
+    2. Sign up for a free account
+    3. Free tier includes:
+       - 25GB storage
+       - 25GB bandwidth/month
+       - 25,000 transformations/month
+  </Step>
+
+  <Step title="Get API Credentials">
+    1. Log in to [Cloudinary Console](https://console.cloudinary.com)
+    2. On the dashboard, you'll see:
+       - **Cloud Name**
+       - **API Key**
+       - **API Secret**
+    3. Click "Reveal API Secret" to view the secret
+    4. Copy all three values
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Add the credentials to `server/.env`:
+    ```env
+    CLOUDINARY_NAME=your_cloud_name
+    CLOUDINARY_API_KEY=123456789012345
+    CLOUDINARY_SECRET_KEY=your_api_secret
+    ```
+  </Step>
+
+  <Step title="Install Dependencies">
+    ```bash
+    cd server
+    npm install cloudinary multer
+    ```
+  </Step>
+</Steps>
+
+## Configuration
+
+Initialize Cloudinary in your server:
+
+```javascript server/configs/cloudinary.js
+import { v2 as cloudinary } from 'cloudinary'
+
+const connectCloudinary = async () => {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_SECRET_KEY,
+  })
+}
+
+export default connectCloudinary
+```
+
+**Initialize on server start:**
+```javascript server/server.js
+import connectCloudinary from './configs/cloudinary.js'
+
+await connectCloudinary()
+```
+
+## Upload Configuration
+
+SkillRise uses Multer for handling multipart/form-data uploads:
+
+```javascript server/configs/multer.js
+import multer from 'multer'
+
+// Use memory storage (files stored in memory as Buffer)
+const storage = multer.memoryStorage()
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']
+    
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error('Only JPEG, PNG, and WebP images are allowed'))
+    }
+  },
+})
+
+export default upload
+```
+
+## Upload Implementation
+
+### Backend Upload Handler
+
+```javascript server/controllers/educatorController.js
+import { v2 as cloudinary } from 'cloudinary'
+import upload from '../configs/multer.js'
+
+export const uploadCourseThumbnail = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No file uploaded' 
+      })
+    }
+
+    // Upload to Cloudinary
+    const result = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'skillrise/course-thumbnails',
+          transformation: [
+            { width: 800, height: 450, crop: 'fill' },
+            { quality: 'auto' },
+            { fetch_format: 'auto' },
+          ],
+        },
+        (error, result) => {
+          if (error) reject(error)
+          else resolve(result)
+        }
+      )
+      uploadStream.end(req.file.buffer)
+    })
+
+    res.json({
+      success: true,
+      url: result.secure_url,
+      publicId: result.public_id,
+    })
+  } catch (error) {
+    console.error('Upload error:', error)
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to upload image' 
+    })
+  }
+}
+```
+
+**Register route:**
+```javascript server/routes/educatorRoutes.js
+import upload from '../configs/multer.js'
+import { uploadCourseThumbnail } from '../controllers/educatorController.js'
+import { protectEducator } from '../middlewares/authMiddleware.js'
+
+router.post(
+  '/upload-thumbnail',
+  protectEducator,
+  upload.single('thumbnail'),
+  uploadCourseThumbnail
+)
+```
+
+### Frontend Upload Component
+
+```jsx client/src/components/ThumbnailUpload.jsx
+import { useState } from 'react'
+
+function ThumbnailUpload({ onUploadComplete }) {
+  const [uploading, setUploading] = useState(false)
+  const [preview, setPreview] = useState(null)
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    // Show preview
+    setPreview(URL.createObjectURL(file))
+
+    // Upload to server
+    setUploading(true)
+    const formData = new FormData()
+    formData.append('thumbnail', file)
+
+    try {
+      const response = await fetch('/api/educator/upload-thumbnail', {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await response.json()
+
+      if (data.success) {
+        onUploadComplete(data.url)
+      }
+    } catch (error) {
+      console.error('Upload failed:', error)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        disabled={uploading}
+      />
+      {preview && (
+        <img 
+          src={preview} 
+          alt="Preview" 
+          className="w-48 h-27 object-cover rounded" 
+        />
+      )}
+      {uploading && <p>Uploading...</p>}
+    </div>
+  )
+}
+```
+
+## Image Transformations
+
+Cloudinary supports on-the-fly transformations via URL parameters:
+
+### Responsive Images
+
+```jsx
+function CourseThumbnail({ url }) {
+  // Original: https://res.cloudinary.com/demo/image/upload/sample.jpg
+  
+  // Optimized versions:
+  const thumbnail = url.replace('/upload/', '/upload/w_400,h_225,c_fill,q_auto,f_auto/')
+  const card = url.replace('/upload/', '/upload/w_800,h_450,c_fill,q_auto,f_auto/')
+  const hero = url.replace('/upload/', '/upload/w_1920,h_1080,c_fill,q_auto,f_auto/')
+
+  return (
+    <img
+      srcSet={`
+        ${thumbnail} 400w,
+        ${card} 800w,
+        ${hero} 1920w
+      `}
+      sizes="(max-width: 640px) 400px, (max-width: 1024px) 800px, 1920px"
+      src={card}
+      alt="Course thumbnail"
+    />
+  )
+}
+```
+
+### Common Transformations
+
+| Transformation | URL Parameter | Example |
+|----------------|---------------|----------|
+| Resize width | `w_400` | 400px width |
+| Resize height | `h_300` | 300px height |
+| Crop | `c_fill` | Fill area, crop excess |
+| Quality | `q_auto` | Auto quality optimization |
+| Format | `f_auto` | Auto format (WebP, AVIF) |
+| Gravity | `g_face` | Focus on faces |
+| Radius | `r_20` | Rounded corners (20px) |
+
+### Transformation Examples
+
+```javascript
+// Avatar - circular crop, 200x200
+const avatarUrl = cloudinaryUrl.replace(
+  '/upload/',
+  '/upload/w_200,h_200,c_fill,g_face,r_max,q_auto,f_auto/'
+)
+
+// Card thumbnail - 16:9 ratio, 800x450
+const cardUrl = cloudinaryUrl.replace(
+  '/upload/',
+  '/upload/w_800,h_450,c_fill,q_auto,f_auto/'
+)
+
+// Hero image - 1920x1080, blur background
+const heroUrl = cloudinaryUrl.replace(
+  '/upload/',
+  '/upload/w_1920,h_1080,c_fill,e_blur:300,q_auto,f_auto/'
+)
+```
+
+## Organize Assets with Folders
+
+Organize uploads by type:
+
+```javascript
+const uploadOptions = {
+  folder: 'skillrise/course-thumbnails',    // Course thumbnails
+  folder: 'skillrise/user-avatars',         // User profile pictures
+  folder: 'skillrise/course-content',       // Course materials
+}
+```
+
+View folders in Cloudinary Console → Media Library.
+
+## Delete Assets
+
+Delete old images when updating:
+
+```javascript
+import { v2 as cloudinary } from 'cloudinary'
+
+export const deleteImage = async (publicId) => {
+  try {
+    await cloudinary.uploader.destroy(publicId)
+    console.log(`Deleted image: ${publicId}`)
+  } catch (error) {
+    console.error('Delete failed:', error)
+  }
+}
+
+// Usage:
+await deleteImage('skillrise/course-thumbnails/abc123')
+```
+
+## Signed Uploads (Advanced)
+
+For direct browser-to-Cloudinary uploads (bypassing your server):
+
+```javascript server/routes/educatorRoutes.js
+import { v2 as cloudinary } from 'cloudinary'
+
+router.get('/upload-signature', protectEducator, (req, res) => {
+  const timestamp = Math.round(new Date().getTime() / 1000)
+  const signature = cloudinary.utils.api_sign_request(
+    {
+      timestamp,
+      folder: 'skillrise/course-thumbnails',
+    },
+    process.env.CLOUDINARY_SECRET_KEY
+  )
+
+  res.json({
+    timestamp,
+    signature,
+    cloudName: process.env.CLOUDINARY_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+  })
+})
+```
+
+**Frontend:**
+```javascript
+const { timestamp, signature, cloudName, apiKey } = await fetchSignature()
+
+const formData = new FormData()
+formData.append('file', file)
+formData.append('timestamp', timestamp)
+formData.append('signature', signature)
+formData.append('api_key', apiKey)
+formData.append('folder', 'skillrise/course-thumbnails')
+
+const response = await fetch(
+  `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+  { method: 'POST', body: formData }
+)
+```
+
+## File Size Limits
+
+### Free Tier Limits
+- **File size**: 10MB per file
+- **Video length**: 100MB (not applicable for SkillRise images)
+- **Monthly bandwidth**: 25GB
+
+### Recommended Limits
+
+Set reasonable limits in Multer config:
+
+```javascript
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024,        // 10MB
+    files: 1,                          // 1 file per request
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error('Invalid file type'))
+    }
+  },
+})
+```
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Upload fails with 'Invalid API key'">
+    - Verify `CLOUDINARY_API_KEY` and `CLOUDINARY_SECRET_KEY` are correct
+    - Check that you've copied the values from the correct cloud name
+    - Ensure there are no extra spaces or quotes in `.env` file
+  </Accordion>
+
+  <Accordion title="Image not displaying">
+    - Verify the URL starts with `https://res.cloudinary.com/`
+    - Check browser console for CORS errors
+    - Ensure the image was uploaded successfully (check Cloudinary Media Library)
+  </Accordion>
+
+  <Accordion title="File upload returns 413 Payload Too Large">
+    - Check Multer `fileSize` limit (default 10MB)
+    - Verify Cloudinary account limits
+    - Compress images before uploading
+  </Accordion>
+
+  <Accordion title="Transformations not working">
+    - Ensure transformation params are in the correct format
+    - Check for typos in parameter names
+    - Verify transformations are placed after `/upload/` in the URL
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Optimize Images" icon="gauge">
+    Always use `q_auto,f_auto` for automatic quality and format optimization.
+  </Card>
+  <Card title="Use Folders" icon="folder">
+    Organize assets by type (thumbnails, avatars, content) for easier management.
+  </Card>
+  <Card title="Set Limits" icon="shield-check">
+    Enforce file size and type limits to prevent abuse and storage bloat.
+  </Card>
+  <Card title="Delete Old Files" icon="trash">
+    Remove old images when updating to save storage and bandwidth.
+  </Card>
+</CardGroup>
+
+## Resources
+
+<CardGroup cols={2}>
+  <Card title="Cloudinary Docs" icon="book" href="https://cloudinary.com/documentation">
+    Official Cloudinary documentation
+  </Card>
+  <Card title="Node.js SDK" icon="node-js" href="https://cloudinary.com/documentation/node_integration">
+    Node.js SDK reference
+  </Card>
+  <Card title="Image Transformations" icon="wand-magic-sparkles" href="https://cloudinary.com/documentation/image_transformations">
+    Transformation guide
+  </Card>
+  <Card title="Upload Widget" icon="cloud-arrow-up" href="https://cloudinary.com/documentation/upload_widget">
+    Upload widget for direct uploads
+  </Card>
+</CardGroup>

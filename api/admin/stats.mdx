@@ -1,0 +1,183 @@
+---
+title: 'Admin Statistics'
+description: 'Retrieve platform statistics and chart data for admin dashboard'
+---
+
+## Get Admin Stats
+
+<api method="GET" endpoint="/api/admin/stats" />
+
+Retrieve comprehensive platform statistics including total users, courses, educators, revenue, and enrollments.
+
+### Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token with admin role required
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="stats" type="object">
+  <Expandable title="stats object">
+    <ResponseField name="totalStudents" type="number">
+      Total number of registered students in the platform
+    </ResponseField>
+
+    <ResponseField name="totalCourses" type="number">
+      Total number of courses created
+    </ResponseField>
+
+    <ResponseField name="totalEducators" type="number">
+      Number of approved educators (approved educator applications)
+    </ResponseField>
+
+    <ResponseField name="pendingApplications" type="number">
+      Number of pending educator applications awaiting review
+    </ResponseField>
+
+    <ResponseField name="totalRevenue" type="number">
+      Total revenue from completed purchases (in platform currency)
+    </ResponseField>
+
+    <ResponseField name="totalEnrollments" type="number">
+      Total number of student enrollments across all courses
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "stats": {
+    "totalStudents": 1247,
+    "totalCourses": 89,
+    "totalEducators": 23,
+    "pendingApplications": 5,
+    "totalRevenue": 456780,
+    "totalEnrollments": 3421
+  }
+}
+```
+</ResponseExample>
+
+---
+
+## Get Chart Data
+
+<api method="GET" endpoint="/api/admin/chart-data" />
+
+Retrieve data for admin dashboard charts including top courses by enrollment and weekly revenue trends.
+
+### Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token with admin role required
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="topCourseData" type="array">
+  Array of top 6 courses sorted by enrollment count
+  <Expandable title="Course item">
+    <ResponseField name="name" type="string">
+      Course title (truncated to 22 characters with ellipsis if longer)
+    </ResponseField>
+
+    <ResponseField name="enrollments" type="number">
+      Number of students enrolled in the course
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="weeklyRevenue" type="array">
+  Revenue data for the past 7 days
+  <Expandable title="Revenue item">
+    <ResponseField name="date" type="string">
+      Date label in format "Weekday Day" (e.g., "Mon 1")
+    </ResponseField>
+
+    <ResponseField name="revenue" type="number">
+      Total revenue for that day from completed purchases
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "topCourseData": [
+    {
+      "name": "Complete Web Development",
+      "enrollments": 342
+    },
+    {
+      "name": "JavaScript Mastery",
+      "enrollments": 287
+    },
+    {
+      "name": "Python for Beginners",
+      "enrollments": 256
+    },
+    {
+      "name": "Data Science Bootcamp",
+      "enrollments": 213
+    },
+    {
+      "name": "React Advanced Pattern…",
+      "enrollments": 198
+    },
+    {
+      "name": "Node.js Backend Dev",
+      "enrollments": 176
+    }
+  ],
+  "weeklyRevenue": [
+    {
+      "date": "Mon 27",
+      "revenue": 12450
+    },
+    {
+      "date": "Tue 28",
+      "revenue": 15230
+    },
+    {
+      "date": "Wed 1",
+      "revenue": 18900
+    },
+    {
+      "date": "Thu 2",
+      "revenue": 14560
+    },
+    {
+      "date": "Fri 3",
+      "revenue": 21340
+    },
+    {
+      "date": "Sat 4",
+      "revenue": 19870
+    },
+    {
+      "date": "Sun 5",
+      "revenue": 16780
+    }
+  ]
+}
+```
+</ResponseExample>
+
+### Notes
+
+- Weekly revenue data covers the past 7 days (including today)
+- Days with no revenue show 0
+- Top courses are sorted by enrollment count in descending order
+- Course names longer than 22 characters are truncated with an ellipsis (…)

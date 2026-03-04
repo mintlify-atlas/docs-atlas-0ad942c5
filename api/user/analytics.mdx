@@ -1,0 +1,265 @@
+---
+title: "Get User Analytics"
+api: "GET /api/user/analytics"
+description: "Retrieve comprehensive learning analytics including time tracking, course breakdown, and daily statistics"
+---
+
+## Authentication
+
+This endpoint requires authentication via Clerk. The `userId` is automatically extracted from the authentication token.
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates whether the request was successful
+</ResponseField>
+
+<ResponseField name="analytics" type="object">
+  Analytics data object
+  
+  <Expandable title="analytics properties">
+    <ResponseField name="totalDuration" type="number">
+      Total learning time in seconds (excludes Home, Browse Courses, Course Details, Analytics, and Other pages)
+    </ResponseField>
+    
+    <ResponseField name="totalSessions" type="number">
+      Total number of learning sessions tracked
+    </ResponseField>
+    
+    <ResponseField name="pageStats" type="array">
+      Per-page time statistics sorted by total duration (descending)
+      
+      <Expandable title="page stats item">
+        <ResponseField name="page" type="string">
+          Page name/identifier
+        </ResponseField>
+        
+        <ResponseField name="path" type="string">
+          URL path of the page
+        </ResponseField>
+        
+        <ResponseField name="totalDuration" type="number">
+          Total time spent on this page in seconds
+        </ResponseField>
+        
+        <ResponseField name="visits" type="number">
+          Number of times this page was visited
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="dailyStats" type="array">
+      Daily breakdown for the last 7 days
+      
+      <Expandable title="daily stats item">
+        <ResponseField name="date" type="string">
+          Date in YYYY-MM-DD format
+        </ResponseField>
+        
+        <ResponseField name="duration" type="number">
+          Total learning time on this date in seconds
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="courseBreakdown" type="array">
+      Course-by-course learning analytics sorted by total time (learning + quiz)
+      
+      <Expandable title="course breakdown item">
+        <ResponseField name="courseId" type="string">
+          Course unique identifier
+        </ResponseField>
+        
+        <ResponseField name="courseTitle" type="string">
+          Course title (or "Unknown Course" if not found)
+        </ResponseField>
+        
+        <ResponseField name="courseThumbnail" type="string | null">
+          URL to course thumbnail image
+        </ResponseField>
+        
+        <ResponseField name="learningDuration" type="number">
+          Time spent in course player (/player/:courseId) in seconds
+        </ResponseField>
+        
+        <ResponseField name="learningSessions" type="number">
+          Number of course player sessions
+        </ResponseField>
+        
+        <ResponseField name="totalQuizDuration" type="number">
+          Total time spent on quizzes across all chapters in seconds
+        </ResponseField>
+        
+        <ResponseField name="chapters" type="array">
+          Chapter-level quiz statistics sorted by quiz duration (descending)
+          
+          <Expandable title="chapter item">
+            <ResponseField name="chapterId" type="string">
+              Chapter unique identifier
+            </ResponseField>
+            
+            <ResponseField name="chapterTitle" type="string">
+              Chapter title (or "Unknown Chapter" if not found)
+            </ResponseField>
+            
+            <ResponseField name="quizDuration" type="number">
+              Time spent on this chapter's quiz in seconds
+            </ResponseField>
+            
+            <ResponseField name="quizSessions" type="number">
+              Number of quiz sessions for this chapter
+            </ResponseField>
+          </Expandable>
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message if success is false
+</ResponseField>
+
+## Response Example
+
+<ResponseExample>
+```json Success Response
+{
+  "success": true,
+  "analytics": {
+    "totalDuration": 18450,
+    "totalSessions": 87,
+    "pageStats": [
+      {
+        "page": "Course Player",
+        "path": "/player/60d5ec49f1b2c72b8c8e4f1a",
+        "totalDuration": 12600,
+        "visits": 42
+      },
+      {
+        "page": "Quiz",
+        "path": "/quiz/60d5ec49f1b2c72b8c8e4f1a/chapter1",
+        "totalDuration": 3420,
+        "visits": 15
+      },
+      {
+        "page": "Profile",
+        "path": "/profile",
+        "totalDuration": 2430,
+        "visits": 30
+      }
+    ],
+    "dailyStats": [
+      { "date": "2024-03-15", "duration": 2100 },
+      { "date": "2024-03-16", "duration": 3600 },
+      { "date": "2024-03-17", "duration": 1800 },
+      { "date": "2024-03-18", "duration": 4200 },
+      { "date": "2024-03-19", "duration": 2700 },
+      { "date": "2024-03-20", "duration": 3150 },
+      { "date": "2024-03-21", "duration": 900 }
+    ],
+    "courseBreakdown": [
+      {
+        "courseId": "60d5ec49f1b2c72b8c8e4f1a",
+        "courseTitle": "Complete Web Development Bootcamp",
+        "courseThumbnail": "https://res.cloudinary.com/skillrise/image/upload/v1234567890/courses/web-dev.jpg",
+        "learningDuration": 12600,
+        "learningSessions": 42,
+        "totalQuizDuration": 3420,
+        "chapters": [
+          {
+            "chapterId": "chapter1",
+            "chapterTitle": "HTML Fundamentals",
+            "quizDuration": 1200,
+            "quizSessions": 5
+          },
+          {
+            "chapterId": "chapter2",
+            "chapterTitle": "CSS Styling",
+            "quizDuration": 1080,
+            "quizSessions": 4
+          },
+          {
+            "chapterId": "chapter3",
+            "chapterTitle": "JavaScript Basics",
+            "quizDuration": 1140,
+            "quizSessions": 6
+          }
+        ]
+      },
+      {
+        "courseId": "60d5ec49f1b2c72b8c8e4f1b",
+        "courseTitle": "Python for Data Science",
+        "courseThumbnail": "https://res.cloudinary.com/skillrise/image/upload/v1234567890/courses/python-ds.jpg",
+        "learningDuration": 2100,
+        "learningSessions": 8,
+        "totalQuizDuration": 330,
+        "chapters": [
+          {
+            "chapterId": "chapter1",
+            "chapterTitle": "Python Basics",
+            "quizDuration": 330,
+            "quizSessions": 2
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error Response
+{
+  "success": false,
+  "message": "An unexpected error occurred"
+}
+```
+</ResponseExample>
+
+## Error Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Success |
+| 401 | Unauthorized - Invalid or missing authentication token |
+| 500 | Internal server error |
+
+## Analytics Calculation Details
+
+### Page Filtering
+
+The following pages are **excluded** from analytics calculations:
+- Home
+- Browse Courses
+- Course Details
+- Analytics
+- Other
+
+### Course Learning Time
+
+Tracked from sessions where the path starts with `/player/:courseId`
+
+### Quiz Time
+
+Tracked from sessions where the path starts with `/quiz/:courseId/:chapterId`
+
+### Daily Statistics
+
+Provides a 7-day rolling window with data for each day, even if duration is 0
+
+### Sorting
+
+- **pageStats**: Sorted by `totalDuration` (descending)
+- **courseBreakdown**: Sorted by total time (learning + quiz duration, descending)
+- **chapters**: Sorted by `quizDuration` (descending)
+
+## Use Cases
+
+- Display user's learning dashboard
+- Track study habits and patterns
+- Identify most engaged courses
+- Generate progress reports
+- Visualize daily learning trends
+- Show chapter-level quiz performance

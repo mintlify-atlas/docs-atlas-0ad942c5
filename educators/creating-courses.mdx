@@ -1,0 +1,554 @@
+---
+title: Creating Courses
+description: Complete guide to the SkillRise course builder workflow
+---
+
+## Overview
+
+The course creation process on SkillRise is designed to be intuitive and comprehensive. The course builder guides you through three main sections, with real-time validation and a live preview.
+
+## Accessing the Course Builder
+
+Navigate to the course creation page:
+
+```bash
+/educator/add-course
+```
+
+Or click the **"New Course"** button from the "My Courses" page.
+
+## Course Builder Interface
+
+The builder features:
+
+<CardGroup cols={2}>
+  <Card title="Left Panel" icon="sidebar">
+    Main form with three progressive sections (Info, Pricing, Content)
+  </Card>
+  <Card title="Right Panel" icon="eye">
+    Live preview showing how your course will appear to students
+  </Card>
+  <Card title="Progress Indicators" icon="check-circle">
+    Visual checkmarks showing completion status for each section
+  </Card>
+  <Card title="Auto-Calculations" icon="calculator">
+    Automatic totals for lectures, duration, and pricing
+  </Card>
+</CardGroup>
+
+## Step 1: Basic Information
+
+### Course Title
+
+Create a compelling title that describes your course:
+
+<ParamField path="courseTitle" type="string" required>
+  - Maximum 80 characters
+  - Should be descriptive and searchable
+  - Examples: "The Complete JavaScript Course 2024", "Python for Data Science"
+</ParamField>
+
+```jsx
+<input
+  type="text"
+  maxLength={80}
+  required
+  placeholder="e.g. The Complete JavaScript Course 2024"
+  value={courseTitle}
+  onChange={(e) => setCourseTitle(e.target.value)}
+/>
+```
+
+### Course Description
+
+Write a comprehensive description using Markdown:
+
+<ParamField path="courseDescription" type="markdown" required>
+  - Supports full Markdown formatting
+  - Describe what students will learn
+  - Include prerequisites
+  - Mention target audience
+  - Highlight unique selling points
+</ParamField>
+
+<Tabs>
+  <Tab title="Example Description">
+    ```markdown
+    # Learn Modern Web Development
+    
+    Master full-stack web development with this comprehensive course.
+    
+    ## What You'll Learn
+    - React fundamentals and advanced patterns
+    - Node.js and Express backend development
+    - MongoDB database design
+    - RESTful API development
+    - Authentication and authorization
+    
+    ## Prerequisites
+    - Basic JavaScript knowledge
+    - HTML and CSS fundamentals
+    - Familiarity with command line
+    
+    ## Who This Is For
+    - Aspiring web developers
+    - Students looking to build portfolio projects
+    - Developers wanting to learn modern frameworks
+    ```
+  </Tab>
+  <Tab title="Editor Implementation">
+    ```jsx
+    import MDEditor from '@uiw/react-md-editor'
+    
+    <MDEditor
+      value={description}
+      onChange={(val) => setDescription(val || '')}
+      height={220}
+      preview="edit"
+      data-color-mode={isDark ? 'dark' : 'light'}
+    />
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+The description supports **bold**, *italic*, lists, code blocks, and more. Use Markdown to create visually appealing course descriptions.
+</Note>
+
+## Step 2: Pricing & Thumbnail
+
+### Course Thumbnail
+
+Upload an eye-catching course image:
+
+<ParamField path="image" type="file" required>
+  - Formats: PNG, JPG, WEBP
+  - Recommended: 1280 × 720 pixels
+  - Maximum file size handled by Cloudinary
+  - Drag-and-drop or click to browse
+</ParamField>
+
+**Upload Features:**
+- Drag and drop support
+- Instant preview
+- Hover to change image
+- Visual feedback with border highlighting
+
+```jsx
+// Drag and drop handler
+const handleDrop = (e) => {
+  e.preventDefault()
+  setIsDragOver(false)
+  const file = e.dataTransfer.files[0]
+  if (file?.type.startsWith('image/')) {
+    setImage(file)
+  } else {
+    toast.error('Please drop an image file')
+  }
+}
+```
+
+<Warning>
+The thumbnail is required. Courses without thumbnails cannot be published.
+</Warning>
+
+### Pricing
+
+Set your course price and optional discount:
+
+<ParamField path="coursePrice" type="number" required>
+  - Price in Indian Rupees (₹)
+  - Minimum: 0 (for free courses)
+  - No maximum limit
+  - Must be a valid number
+</ParamField>
+
+<ParamField path="discount" type="number" default="0">
+  - Percentage discount (0-100%)
+  - Optional field
+  - Applied to course price automatically
+</ParamField>
+
+**Price Calculation:**
+
+```javascript
+const price = parseFloat(coursePrice) || 0
+const disc = parseFloat(discount) || 0
+const finalPrice = price > 0 
+  ? Math.floor(price - (disc * price) / 100) 
+  : 0
+
+// Example:
+// coursePrice = 4999
+// discount = 20
+// finalPrice = 3999
+```
+
+**Price Display:**
+
+<Tabs>
+  <Tab title="With Discount">
+    <img src="/images/price-with-discount.png" alt="Shows strikethrough original price, final price, and discount badge" />
+    - ~~₹4,999~~ **₹3,999** (20% off badge)
+  </Tab>
+  <Tab title="Without Discount">
+    - **₹4,999**
+    - No badge shown
+  </Tab>
+</Tabs>
+
+## Step 3: Course Content
+
+This is where you structure your course with chapters and lectures.
+
+### Content Structure
+
+```
+Course
+└── Chapters (ordered sections)
+    └── Lectures (individual videos)
+```
+
+### Adding Chapters
+
+1. Click **"Add Chapter"** button
+2. Enter chapter title in the input field
+3. Press Enter or click "Add"
+4. Chapter is created with a unique ID
+
+**Chapter Properties:**
+
+```javascript
+{
+  chapterId: "unique-uuid",
+  chapterTitle: "Chapter 1: Introduction",
+  chapterOrder: 1,
+  chapterContent: [], // Array of lectures
+  collapsed: false // UI state
+}
+```
+
+**Chapter Actions:**
+- **Double-click title** - Rename the chapter
+- **Click arrow** - Collapse/expand to hide lectures
+- **Click trash icon** - Remove entire chapter
+
+### Adding Lectures
+
+Within each chapter, you can add multiple lectures:
+
+1. Expand the chapter
+2. Click **"Add Lecture"** at the bottom
+3. Fill in the lecture modal:
+
+<ParamField path="lectureTitle" type="string" required>
+  Title of the lecture (e.g., "Introduction to React Hooks")
+</ParamField>
+
+<ParamField path="lectureDuration" type="number" required>
+  Duration in minutes (used for calculating total course length)
+</ParamField>
+
+<ParamField path="lectureUrl" type="url" required>
+  Valid video URL from YouTube, Vimeo, or direct video link
+</ParamField>
+
+<ParamField path="isPreviewFree" type="boolean" default="false">
+  Toggle to allow free preview (students can watch without enrolling)
+</ParamField>
+
+**Lecture Modal Example:**
+
+```jsx
+<LectureModal
+  onClose={() => setShowModal(false)}
+  onAdd={(details) => {
+    // Add lecture to chapter with auto-generated ID
+    const lecture = {
+      ...details,
+      lectureId: createId(),
+      lectureOrder: lastOrder + 1
+    }
+    // Update chapter's chapterContent array
+  }}
+/>
+```
+
+### Lecture Properties
+
+```javascript
+{
+  lectureId: "unique-uuid",
+  lectureTitle: "Introduction to Hooks",
+  lectureDuration: 15, // minutes
+  lectureUrl: "https://youtube.com/watch?v=abc123",
+  isPreviewFree: true,
+  lectureOrder: 1
+}
+```
+
+<Info>
+Lectures with `isPreviewFree: true` display a **FREE** badge and can be viewed by anyone.
+</Info>
+
+### Managing Lectures
+
+- **View duration** - Shown next to each lecture (e.g., "15m")
+- **See preview status** - FREE badge for preview lectures
+- **Delete lecture** - Hover over lecture and click the X icon
+- **Reorder** - Lectures are ordered sequentially within chapters
+
+## Auto-Calculations
+
+The system automatically calculates:
+
+### Total Lectures
+
+```javascript
+const totalLectures = chapters.reduce(
+  (sum, chapter) => sum + chapter.chapterContent.length, 
+  0
+)
+```
+
+### Total Duration
+
+```javascript
+let totalDurationMinutes = 0
+chapters.forEach(chapter => {
+  chapter.chapterContent.forEach(lecture => {
+    totalDurationMinutes += lecture.lectureDuration
+  })
+})
+```
+
+### Final Price
+
+Calculated with discount applied (shown in real-time).
+
+## Live Preview Panel
+
+As you build your course, the right panel shows:
+
+<Steps>
+  <Step title="Course Thumbnail">
+    Preview of uploaded image (or placeholder)
+  </Step>
+  <Step title="Course Title">
+    Your entered title
+  </Step>
+  <Step title="Description Preview">
+    First 120 characters (markdown stripped)
+  </Step>
+  <Step title="Pricing">
+    Original price, final price, and discount badge
+  </Step>
+  <Step title="Content Overview">
+    Chapter count, lecture count, total duration
+  </Step>
+</Steps>
+
+```javascript
+// Description preview generation
+const descPreview = description
+  .replace(/[#*`_>[\]()!-]/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .slice(0, 120)
+```
+
+## Validation & Publishing
+
+### Section Completion
+
+Each section has completion criteria:
+
+```javascript
+const step1Complete = courseTitle.trim().length > 0
+const step2Complete = price > 0 && !!image
+const step3Complete = chapters.length > 0 && totalLectures > 0
+```
+
+<CheckCircle>
+Green checkmarks appear when sections are complete
+</CheckCircle>
+
+### Pre-Submit Validation
+
+Before submission, the form validates:
+
+```javascript
+if (!courseTitle.trim()) {
+  toast.error('Course title is required')
+  return
+}
+if (!description.trim()) {
+  toast.error('Course description is empty')
+  return
+}
+if (!image) {
+  toast.error('Please select a thumbnail')
+  return
+}
+if (chapters.length === 0) {
+  toast.error('Add at least one chapter')
+  return
+}
+if (totalLectures === 0) {
+  toast.error('Add at least one lecture')
+  return
+}
+```
+
+## Course Submission
+
+When you click **"Publish Course"**:
+
+### 1. Data Preparation
+
+```javascript
+const courseData = {
+  courseTitle: courseTitle.trim(),
+  courseDescription: description,
+  coursePrice: price,
+  discount: disc,
+  courseContent: chapters
+}
+```
+
+### 2. FormData Creation
+
+```javascript
+const formData = new FormData()
+formData.append('courseData', JSON.stringify(courseData))
+formData.append('image', image) // File object
+```
+
+### 3. API Request
+
+```javascript
+const token = await getToken()
+const { data } = await axios.post(
+  backendUrl + '/api/educator/add-course',
+  formData,
+  {
+    headers: { Authorization: `Bearer ${token}` }
+  }
+)
+```
+
+### 4. Backend Processing
+
+The server:
+1. Validates educator authentication
+2. Parses course data
+3. Calculates total lectures and duration
+4. Uploads thumbnail to Cloudinary
+5. Creates course in MongoDB
+6. Returns success/failure response
+
+```javascript
+// Server-side calculation
+let totalLectures = 0
+let totalDurationMinutes = 0
+
+courseContent.forEach((chapter) => {
+  if (Array.isArray(chapter.chapterContent)) {
+    totalLectures += chapter.chapterContent.length
+    
+    chapter.chapterContent.forEach((lecture) => {
+      totalDurationMinutes += lecture.lectureDuration
+    })
+  }
+})
+
+const newCourse = await Course.create({
+  courseTitle,
+  courseDescription,
+  coursePrice,
+  discount,
+  courseContent,
+  isPublished,
+  educatorId,
+  totalLectures,
+  totalDurationMinutes
+})
+
+// Upload thumbnail
+const imageUpload = await cloudinary.uploader.upload(imageFile.path)
+newCourse.courseThumbnail = imageUpload.secure_url
+await newCourse.save()
+```
+
+<Success>
+On success, the form clears and you're ready to create another course!
+</Success>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Course Structure">
+    - Start with an introduction chapter
+    - Group related lectures into logical chapters
+    - Keep lectures focused (5-20 minutes ideal)
+    - End with a conclusion or summary chapter
+    - Consider adding a "Getting Started" chapter with setup instructions
+  </Accordion>
+  
+  <Accordion title="Content Organization">
+    - Use clear, descriptive chapter titles
+    - Number chapters if teaching a progression
+    - Make first lecture free for previews
+    - Break complex topics across multiple lectures
+    - Include practical examples in each section
+  </Accordion>
+  
+  <Accordion title="Video Requirements">
+    - Test all video URLs before submitting
+    - Ensure videos are publicly accessible
+    - Use consistent video quality across lectures
+    - Add captions/subtitles when possible
+    - Keep intro/outro segments brief
+  </Accordion>
+  
+  <Accordion title="Thumbnail Design">
+    - Use high-contrast colors for readability
+    - Include course topic in the image
+    - Avoid cluttered designs
+    - Use readable fonts if adding text
+    - Maintain 16:9 aspect ratio
+  </Accordion>
+  
+  <Accordion title="Pricing Strategy">
+    - Research similar courses in your niche
+    - Consider course length and depth
+    - Use discounts for launch promotions
+    - Price competitively but don't undervalue
+    - Update pricing based on content additions
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<Warning>
+**Common Issues:**
+</Warning>
+
+| Issue | Solution |
+|-------|----------|
+| "Thumbnail Not Attached" | Ensure image file is selected before submitting |
+| Video URL invalid | Verify URL is accessible and properly formatted |
+| Can't add lecture | Check that chapter is expanded and fields are filled |
+| Preview not updating | Browser cache - try hard refresh (Ctrl+Shift+R) |
+| Form won't submit | Check all three sections have green checkmarks |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Manage Your Courses" icon="list" href="/educators/managing-content">
+    Learn to edit and update existing courses
+  </Card>
+  <Card title="View Dashboard" icon="chart-line" href="/educators/dashboard">
+    Monitor course performance and enrollments
+  </Card>
+</CardGroup>

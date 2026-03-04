@@ -1,0 +1,279 @@
+---
+title: API Overview
+description: Introduction to the SkillRise API, base URLs, response formats, and core architecture
+icon: "code"
+---
+
+## Introduction
+
+The SkillRise API is a RESTful API that powers the SkillRise e-learning platform. It provides endpoints for course management, user enrollment, AI-powered learning assistance, community features, quiz generation, and payment processing.
+
+The API is built with Express.js and uses MongoDB for data persistence, with integrations for:
+- **Clerk** for authentication
+- **Razorpay** for payment processing
+- **Cloudinary** for media storage
+- **Groq SDK** for AI features
+
+## Base URL
+
+The API base URL varies by environment:
+
+<CodeGroup>
+```bash Production
+https://api.skillrise.com
+```
+
+```bash Development
+http://localhost:3000
+```
+</CodeGroup>
+
+All API routes are prefixed with `/api` followed by the resource category:
+
+- `/api/course` - Public course endpoints
+- `/api/user` - User-specific endpoints (protected)
+- `/api/educator` - Educator endpoints (role-protected)
+- `/api/admin` - Admin endpoints (role-protected)
+- `/api/community` - Community posts and groups
+- `/api/quiz` - Quiz generation and submission
+
+## API Architecture
+
+### Route Structure
+
+The SkillRise API follows a modular route structure organized by resource type:
+
+```javascript
+server.js
+├── /api/course        // Course browsing (public)
+├── /api/user          // User actions (authenticated)
+├── /api/educator      // Educator features (role-based)
+├── /api/admin         // Admin panel (role-based)
+├── /api/community     // Community features
+└── /api/quiz          // Quiz system
+```
+
+### Middleware Stack
+
+Every request passes through a middleware stack:
+
+1. **Helmet** - Security headers
+2. **CORS** - Cross-origin resource sharing
+3. **Clerk Middleware** - Auth context injection
+4. **Rate Limiters** - Request throttling (route-specific)
+5. **Express JSON** - Request body parsing
+
+### Rate Limiting
+
+The API implements intelligent rate limiting based on userId (when authenticated) or IP address (for guests):
+
+<ResponseField name="AI Chat" type="30 requests / 10 minutes">
+  Applied to `/api/user/ai-chat` - Generous limit for frequent chatbot usage
+</ResponseField>
+
+<ResponseField name="Payments" type="10 requests / 15 minutes">
+  Applied to `/api/user/purchase` and `/api/user/verify-razorpay` - Tight limit to prevent fraud
+</ResponseField>
+
+<ResponseField name="AI Generation" type="10 requests / hour">
+  Applied to quiz generation and roadmap endpoints - Prevents API cost abuse
+</ResponseField>
+
+<ResponseField name="Quiz Submission" type="30 requests / 10 minutes">
+  Applied to `/api/quiz/submit` - Prevents brute-forcing quiz answers
+</ResponseField>
+
+<ResponseField name="Community Writes" type="20 requests / 10 minutes">
+  Applied to POST operations on `/api/community/posts` and replies - Spam protection
+</ResponseField>
+
+<ResponseField name="Admin Panel" type="100 requests / 15 minutes">
+  Applied to `/api/admin/*` - Extra safety layer for admin operations
+</ResponseField>
+
+<Note>
+  Rate limits track by `userId` when authenticated, preventing limit bypass through IP switching.
+</Note>
+
+## Response Format
+
+All API responses follow a consistent JSON format:
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "message": "Operation completed successfully", // Optional
+  "data": { /* Response payload */ }
+}
+```
+
+### Error Response
+
+```json
+{
+  "success": false,
+  "message": "Error description"
+}
+```
+
+### Common Status Codes
+
+<ResponseField name="200 OK" type="Success">
+  Request successful, data returned in response body
+</ResponseField>
+
+<ResponseField name="400 Bad Request" type="Client Error">
+  Invalid request data (validation failed)
+</ResponseField>
+
+<ResponseField name="401 Unauthorized" type="Auth Error">
+  Missing or invalid authentication token
+</ResponseField>
+
+<ResponseField name="403 Forbidden" type="Auth Error">
+  User lacks required role/permissions for this endpoint
+</ResponseField>
+
+<ResponseField name="404 Not Found" type="Client Error">
+  Resource not found
+</ResponseField>
+
+<ResponseField name="409 Conflict" type="Client Error">
+  Request conflicts with current state (e.g., duplicate purchase)
+</ResponseField>
+
+<ResponseField name="429 Too Many Requests" type="Rate Limit">
+  Rate limit exceeded, includes `RateLimit-*` headers for retry timing
+</ResponseField>
+
+<ResponseField name="500 Internal Server Error" type="Server Error">
+  Unexpected server error occurred
+</ResponseField>
+
+## Request Validation
+
+The API uses **Zod** schemas for request body validation. Invalid requests receive a `400 Bad Request` response:
+
+```json
+{
+  "success": false,
+  "message": "Invalid request data"
+}
+```
+
+Validation rules are enforced at the controller level before processing requests.
+
+## Data Models
+
+The API works with the following core data models:
+
+### Course
+Courses with chapters, lectures, ratings, and enrollment data
+
+### User
+Student profiles with enrolled courses and progress tracking
+
+### CourseProgress
+Tracks completed lectures and course completion status
+
+### Purchase
+Payment transactions (Razorpay integration)
+
+### Certificate
+Generated PDF certificates for completed courses
+
+### CommunityPost & Reply
+Discussion posts with upvotes and answers
+
+### Quiz & QuizResult
+AI-generated quizzes with performance tracking
+
+### ChatSession
+AI chatbot conversation history
+
+## Error Handling
+
+The API includes a global error handler that:
+
+- Logs full stack traces in development
+- Logs error messages only in production (security)
+- Returns standardized error responses
+- Catches unhandled errors with `500` status
+
+```javascript
+// Global error handler (server.js:146)
+app.use((err, _req, res, _next) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.error(err) // Full trace in dev
+  } else {
+    console.error(`[Error] ${err.message}`) // Message only in prod
+  }
+  res.status(500).json({ 
+    success: false, 
+    message: 'Internal server error' 
+  })
+})
+```
+
+## Pagination
+
+Currently, the API does not implement cursor-based pagination. Large collections return all results. Future versions may add pagination for:
+
+- Course listings
+- Community posts
+- Enrollment data
+
+## CORS Configuration
+
+CORS is configured to accept requests from the frontend URL specified in environment variables:
+
+```javascript
+app.use(cors({ 
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173' 
+}))
+```
+
+<Warning>
+  In production, `FRONTEND_URL` environment variable is **required**. The server will throw an error on startup if it's missing.
+</Warning>
+
+## Webhooks
+
+The API exposes webhook endpoints for external services:
+
+### Clerk Webhooks
+`POST /clerk` - Handles user lifecycle events (user.created, user.updated, user.deleted)
+
+### Razorpay Webhooks
+`POST /razorpay` - Processes payment confirmation events (uses raw body parser)
+
+<Note>
+  Razorpay webhooks require raw body for signature verification, so they're processed **before** the JSON body parser middleware.
+</Note>
+
+## Health Check
+
+A simple health check endpoint is available:
+
+```bash
+GET /
+```
+
+Returns: `"API Working"`
+
+## SDK & Client Libraries
+
+Currently, no official SDKs are provided. The frontend client uses direct `fetch` calls to the API endpoints.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="shield-halved" href="/api/authentication">
+    Learn how to authenticate requests using Clerk tokens
+  </Card>
+  <Card title="Endpoints" icon="list" href="/api/endpoints">
+    Browse all available API endpoints
+  </Card>
+</CardGroup>

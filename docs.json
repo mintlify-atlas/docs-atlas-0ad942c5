@@ -1,122 +1,196 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "SkillRise",
+  "theme": "almond",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#30af9f",
+    "light": "#24605c",
+    "dark": "#161719"
   },
   "favicon": "/favicon.svg",
+  "logo": {
+    "light": "/logo.svg",
+    "dark": "/logo.svg"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/pv-pushkarverma/SkillRise"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/pv-pushkarverma/SkillRise"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Overview",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "introduction",
+              "quickstart"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Getting Started",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "getting-started/installation",
+              "getting-started/configuration",
+              "getting-started/docker-setup",
+              "getting-started/seeding-data"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Core Features",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "features/authentication",
+              "features/course-management",
+              "features/payment-system",
+              "features/ai-features",
+              "features/analytics",
+              "features/community"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "For Students",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "students/browsing-courses",
+              "students/enrolling-courses",
+              "students/learning-experience",
+              "students/ai-assistant",
+              "students/progress-tracking"
+            ]
+          },
+          {
+            "group": "For Educators",
+            "pages": [
+              "educators/becoming-educator",
+              "educators/creating-courses",
+              "educators/managing-content",
+              "educators/dashboard",
+              "educators/student-management"
+            ]
+          },
+          {
+            "group": "For Admins",
+            "pages": [
+              "admins/dashboard",
+              "admins/user-management",
+              "admins/course-management",
+              "admins/purchase-management",
+              "admins/educator-applications"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/clerk",
+              "integrations/stripe",
+              "integrations/cloudinary",
+              "integrations/groq-ai",
+              "integrations/webhooks"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker",
+              "deployment/ci-cd",
+              "deployment/environment-variables"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/project-structure",
+              "development/contributing",
+              "development/testing"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Overview",
             "pages": [
-              "api-reference/introduction"
+              "api/overview",
+              "api/authentication"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Course API",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/courses/list-courses",
+              "api/courses/get-course"
+            ]
+          },
+          {
+            "group": "User API",
+            "pages": [
+              "api/user/get-user-data",
+              "api/user/enrolled-courses",
+              "api/user/purchase-course",
+              "api/user/course-progress",
+              "api/user/analytics"
+            ]
+          },
+          {
+            "group": "AI Features API",
+            "pages": [
+              "api/ai/chatbot",
+              "api/ai/roadmap",
+              "api/ai/chat-sessions"
+            ]
+          },
+          {
+            "group": "Quiz API",
+            "pages": [
+              "api/quiz/generate-quiz",
+              "api/quiz/submit-result"
+            ]
+          },
+          {
+            "group": "Community API",
+            "pages": [
+              "api/community/groups",
+              "api/community/posts",
+              "api/community/replies"
+            ]
+          },
+          {
+            "group": "Educator API",
+            "pages": [
+              "api/educator/apply",
+              "api/educator/create-course",
+              "api/educator/dashboard",
+              "api/educator/enrolled-students"
+            ]
+          },
+          {
+            "group": "Admin API",
+            "pages": [
+              "api/admin/stats",
+              "api/admin/courses",
+              "api/admin/users",
+              "api/admin/purchases",
+              "api/admin/applications"
+            ]
+          },
+          {
+            "group": "Webhooks",
+            "pages": [
+              "api/webhooks/clerk",
+              "api/webhooks/stripe"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

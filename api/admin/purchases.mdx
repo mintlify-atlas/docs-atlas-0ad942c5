@@ -1,0 +1,209 @@
+---
+title: 'Admin Purchases'
+description: 'View and filter all purchase transactions'
+---
+
+## Get All Purchases
+
+<api method="GET" endpoint="/api/admin/purchases" />
+
+Retrieve all purchase transactions with optional filtering by status.
+
+### Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token with admin role required
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="status" type="string" optional>
+  Filter purchases by status. Available values:
+  - `created` - Purchase record created but payment not initiated
+  - `pending` - Payment in progress
+  - `completed` - Payment successful and enrollment confirmed
+  - `failed` - Payment failed
+  - `refunded` - Purchase refunded
+  - `all` - Returns all purchases regardless of status (default)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="purchases" type="array">
+  Array of purchases sorted by creation date (newest first)
+  <Expandable title="Purchase object">
+    <ResponseField name="_id" type="string">
+      Purchase unique identifier (MongoDB ObjectId)
+    </ResponseField>
+
+    <ResponseField name="userId" type="string">
+      Clerk user ID of the student who made the purchase
+    </ResponseField>
+
+    <ResponseField name="courseId" type="object">
+      Populated course information
+      <Expandable title="Course details">
+        <ResponseField name="_id" type="string">
+          Course unique identifier
+        </ResponseField>
+
+        <ResponseField name="courseTitle" type="string">
+          Title of the purchased course
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+
+    <ResponseField name="amount" type="number">
+      Purchase amount (in base currency units)
+    </ResponseField>
+
+    <ResponseField name="currency" type="string">
+      Currency code (default: 'INR')
+    </ResponseField>
+
+    <ResponseField name="status" type="string">
+      Current status of the purchase
+      - `created` - Initial state
+      - `pending` - Payment processing
+      - `completed` - Successfully completed
+      - `failed` - Payment failed
+      - `refunded` - Refunded to customer
+    </ResponseField>
+
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp when the purchase was created
+    </ResponseField>
+
+    <ResponseField name="updatedAt" type="string">
+      ISO 8601 timestamp when the purchase was last updated
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json Response (All Purchases)
+{
+  "success": true,
+  "purchases": [
+    {
+      "_id": "65a1b2c3d4e5f6789abcdef0",
+      "userId": "user_2abc123def456",
+      "courseId": {
+        "_id": "65a1b2c3d4e5f6789abcdef5",
+        "courseTitle": "Complete Web Development Bootcamp 2024"
+      },
+      "amount": 3999,
+      "currency": "INR",
+      "status": "completed",
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:31:23.000Z"
+    },
+    {
+      "_id": "65a1b2c3d4e5f6789abcdef1",
+      "userId": "user_3xyz789ghi012",
+      "courseId": {
+        "_id": "65a1b2c3d4e5f6789abcdef6",
+        "courseTitle": "JavaScript Mastery: From Zero to Hero"
+      },
+      "amount": 2974,
+      "currency": "INR",
+      "status": "completed",
+      "createdAt": "2024-01-15T09:15:00.000Z",
+      "updatedAt": "2024-01-15T09:16:45.000Z"
+    },
+    {
+      "_id": "65a1b2c3d4e5f6789abcdef2",
+      "userId": "user_4mno345pqr678",
+      "courseId": {
+        "_id": "65a1b2c3d4e5f6789abcdef7",
+        "courseTitle": "Python for Data Science"
+      },
+      "amount": 4499,
+      "currency": "INR",
+      "status": "failed",
+      "createdAt": "2024-01-15T08:45:00.000Z",
+      "updatedAt": "2024-01-15T08:46:12.000Z"
+    },
+    {
+      "_id": "65a1b2c3d4e5f6789abcdef3",
+      "userId": "user_5stu901vwx234",
+      "courseId": {
+        "_id": "65a1b2c3d4e5f6789abcdef8",
+        "courseTitle": "React Advanced Patterns"
+      },
+      "amount": 5999,
+      "currency": "INR",
+      "status": "pending",
+      "createdAt": "2024-01-15T07:20:00.000Z",
+      "updatedAt": "2024-01-15T07:20:00.000Z"
+    }
+  ]
+}
+```
+
+```json Response (Completed Only)
+{
+  "success": true,
+  "purchases": [
+    {
+      "_id": "65a1b2c3d4e5f6789abcdef0",
+      "userId": "user_2abc123def456",
+      "courseId": {
+        "_id": "65a1b2c3d4e5f6789abcdef5",
+        "courseTitle": "Complete Web Development Bootcamp 2024"
+      },
+      "amount": 3999,
+      "currency": "INR",
+      "status": "completed",
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:31:23.000Z"
+    },
+    {
+      "_id": "65a1b2c3d4e5f6789abcdef1",
+      "userId": "user_3xyz789ghi012",
+      "courseId": {
+        "_id": "65a1b2c3d4e5f6789abcdef6",
+        "courseTitle": "JavaScript Mastery: From Zero to Hero"
+      },
+      "amount": 2974,
+      "currency": "INR",
+      "status": "completed",
+      "createdAt": "2024-01-15T09:15:00.000Z",
+      "updatedAt": "2024-01-15T09:16:45.000Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+### Example Requests
+
+<CodeGroup>
+```bash Get All Purchases
+curl -X GET "https://api.skillrise.com/api/admin/purchases" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+```bash Get Completed Purchases
+curl -X GET "https://api.skillrise.com/api/admin/purchases?status=completed" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+```bash Get Failed Purchases
+curl -X GET "https://api.skillrise.com/api/admin/purchases?status=failed" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+</CodeGroup>
+
+### Notes
+
+- Purchases are sorted by creation date in descending order (newest first)
+- The `amount` field represents the final price after any discounts applied
+- Revenue calculations should only include purchases with `status: 'completed'`
+- The `courseId` field is populated with basic course information (ID and title)
+- If no `status` query parameter is provided or `status=all`, all purchases are returned
+- Currency defaults to 'INR' (Indian Rupee) for all transactions

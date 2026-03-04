@@ -1,0 +1,273 @@
+---
+title: 'Course Management'
+description: 'View all courses with enrollment and revenue statistics'
+icon: 'book'
+---
+
+The Course Management interface provides administrators with a comprehensive view of all courses on the platform, including enrollment metrics, revenue data, and publication status.
+
+## Overview
+
+Administrators can monitor course performance, track revenue generation, and view detailed information about each course and its educator.
+
+<Info>
+This page displays real-time data for all courses, including both published and draft courses
+</Info>
+
+## Key Features
+
+### Search Functionality
+
+Filter courses by:
+- **Course Title**: Partial matches supported (case-insensitive)
+- **Educator Name**: Search by the course creator's name
+
+```javascript
+const filtered = courses.filter((c) =>
+  c.courseTitle.toLowerCase().includes(search.toLowerCase()) ||
+  c.educator?.name?.toLowerCase().includes(search.toLowerCase())
+)
+```
+
+### Summary Statistics
+
+The page header displays aggregate metrics:
+
+<CardGroup cols={3}>
+  <Card title="Total Courses" icon="graduation-cap">
+    Count of all courses on the platform
+  </Card>
+  <Card title="Total Revenue" icon="indian-rupee-sign">
+    Cumulative revenue from course purchases (₹)
+  </Card>
+  <Card title="Total Enrollments" icon="users">
+    Sum of all student enrollments across courses
+  </Card>
+</CardGroup>
+
+## Course Information Table
+
+Each course entry displays comprehensive information:
+
+### Columns
+
+| Column | Description | Visibility |
+|--------|-------------|------------|
+| **Course** | Title and creation date | Always visible |
+| **Educator** | Creator name and email | Hidden on mobile |
+| **Enrollments** | Number of enrolled students | Always visible |
+| **Revenue** | Total earnings and purchase count | Hidden on tablet |
+| **Price** | Current price (with discount if applicable) | Hidden on tablet |
+| **Status** | Published or Draft badge | Hidden on mobile |
+
+### Course Details
+
+<Tabs>
+  <Tab title="Title & Date">
+    - Full course title with line clamping
+    - Creation date formatted as "15 Jan 2024"
+  </Tab>
+  <Tab title="Educator Info">
+    - Educator's full name
+    - Registered email address
+    - Truncated for long emails
+  </Tab>
+  <Tab title="Enrollment Metrics">
+    - Enrollment count as primary number
+    - "students" label below count
+  </Tab>
+  <Tab title="Revenue Data">
+    - Total revenue in emerald color (₹)
+    - Purchase count with plural handling
+  </Tab>
+</Tabs>
+
+## Pricing Display
+
+### Regular Pricing
+
+When no discount is applied:
+
+```text
+₹2,499
+```
+
+### Discounted Pricing
+
+When a discount is active:
+
+```text
+₹1,999
+₹2,499  (struck through)
+```
+
+The effective price is calculated as:
+
+```javascript
+const effectivePrice = discount > 0
+  ? coursePrice - (coursePrice * discount) / 100
+  : coursePrice
+```
+
+## Status Indicators
+
+<Tabs>
+  <Tab title="Published">
+    <Frame>
+      Teal badge indicating the course is live and visible to students
+    </Frame>
+  </Tab>
+  <Tab title="Draft">
+    <Frame>
+      Gray badge indicating the course is not yet published
+    </Frame>
+  </Tab>
+</Tabs>
+
+## API Integration
+
+### GET /api/admin/courses
+
+Fetches all courses with enhanced statistics:
+
+```json
+{
+  "success": true,
+  "courses": [
+    {
+      "_id": "course123",
+      "courseTitle": "Introduction to React",
+      "educatorId": {
+        "name": "John Smith",
+        "email": "john@example.com"
+      },
+      "enrolledCount": 234,
+      "isPublished": true,
+      "coursePrice": 2499,
+      "discount": 20,
+      "createdAt": "2024-01-15T10:30:00Z",
+      "revenue": 467661,
+      "purchases": 267
+    }
+  ]
+}
+```
+
+<Note>
+Requires admin authentication via Bearer token
+</Note>
+
+## Data Calculation
+
+### Revenue Aggregation
+
+<Steps>
+  <Step title="Filter Purchases">
+    Only completed purchases (`status: 'completed'`) are included
+  </Step>
+  <Step title="Group by Course">
+    Purchases are grouped by `courseId` using MongoDB aggregation
+  </Step>
+  <Step title="Sum Amounts">
+    Total revenue per course is calculated by summing `amount` fields
+  </Step>
+  <Step title="Count Transactions">
+    Number of successful purchases is counted per course
+  </Step>
+</Steps>
+
+Backend aggregation pipeline:
+
+```javascript
+const purchases = await Purchase.aggregate([
+  { $match: { status: 'completed' } },
+  {
+    $group: {
+      _id: '$courseId',
+      revenue: { $sum: '$amount' },
+      count: { $sum: 1 }
+    }
+  }
+])
+```
+
+### Enrollment Counting
+
+Enrollment count is derived from the `enrolledStudents` array length:
+
+```javascript
+enrolledCount: course.enrolledStudents.length
+```
+
+## Responsive Behavior
+
+<CardGroup cols={3}>
+  <Card title="Mobile" icon="mobile">
+    Shows course title, enrollments, and status only
+  </Card>
+  <Card title="Tablet" icon="tablet">
+    Adds educator information, hides revenue and price details
+  </Card>
+  <Card title="Desktop" icon="desktop">
+    Displays all columns with complete information
+  </Card>
+</CardGroup>
+
+## Course Sorting
+
+Courses are sorted by creation date in descending order:
+
+```javascript
+.sort({ createdAt: -1 })
+```
+
+This ensures the newest courses appear first in the list.
+
+## Empty States
+
+<Warning>
+When no courses match the search criteria:
+- **With search**: "No courses match your search"
+- **Without search**: "No courses yet"
+</Warning>
+
+## Performance Considerations
+
+### Database Query Optimization
+
+The backend uses:
+- Field selection to reduce payload size
+- Population for educator details
+- Aggregation for purchase statistics
+
+```javascript
+const courses = await Course.find()
+  .select('courseTitle educator enrolledStudents isPublished coursePrice discount createdAt')
+  .populate('educatorId', 'name email')
+  .sort({ createdAt: -1 })
+```
+
+### Client-side Filtering
+
+Search filtering happens on the client for instant results without additional API calls.
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Revenue Analysis">
+    Identify top-earning courses and compare pricing strategies across different categories.
+  </Accordion>
+  <Accordion title="Enrollment Monitoring">
+    Track which courses are most popular and identify courses that may need promotion.
+  </Accordion>
+  <Accordion title="Educator Performance">
+    View course creation activity per educator and identify prolific content creators.
+  </Accordion>
+  <Accordion title="Draft Tracking">
+    Monitor unpublished courses to follow up with educators about completion status.
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+Use the search feature to quickly find specific courses when handling student support inquiries or educator questions.
+</Tip>

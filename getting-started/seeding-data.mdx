@@ -1,0 +1,862 @@
+---
+title: Seeding Data
+description: Populate your SkillRise database with demo users, courses, purchases, quizzes, and community content for development and testing
+---
+
+## Overview
+
+The SkillRise seed script (`server/seed.js`) populates the database with realistic demo data including:
+
+- **10 users** (7 educators, 3 students)
+- **10 courses** across various categories (Web Dev, Data Science, UI/UX, DevOps, etc.)
+- **19 purchases** (students enrolled in courses)
+- **19 course progress records** (tracking lecture completion)
+- **15 quizzes** with multiple-choice questions
+- **4 community groups** (Web Development, Data Science, UI/UX, Career)
+- **12 discussion posts** with upvotes
+- **18 threaded replies**
+
+<Info>
+  **Safe to re-run:** The seed script clears existing seeded data before inserting new records. Your production data remains untouched.
+</Info>
+
+---
+
+## Prerequisites
+
+<Steps>
+  <Step title="Complete installation">
+    Ensure you've completed [Installation](/getting-started/installation) and [Configuration](/getting-started/configuration).
+  </Step>
+
+  <Step title="Database connection">
+    Verify MongoDB is running and `MONGODB_URI` is configured in `server/.env`.
+  </Step>
+
+  <Step title="Dependencies installed">
+    ```bash
+    cd server && npm install
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Running the Seed Script
+
+<Tabs>
+  <Tab title="Local Development">
+    ### Run Seed Script Locally
+
+    <Steps>
+      <Step title="Navigate to server directory">
+        ```bash
+        cd server
+        ```
+      </Step>
+
+      <Step title="Run seed command">
+        ```bash
+        npm run seed
+        ```
+
+        Or directly:
+        ```bash
+        node seed.js
+        ```
+      </Step>
+
+      <Step title="Verify output">
+        You should see:
+
+        ```
+        🧹 Clearing existing seed data...
+        👤 Seeding users...
+           ✓ 10 users
+        📚 Seeding courses...
+           ✓ 10 courses
+        💳 Seeding purchases...
+           ✓ 19 purchases
+        📈 Seeding course progress...
+           ✓ 19 progress records
+        🧠 Seeding quizzes...
+           ✓ 15 quizzes
+        🌐 Seeding community groups...
+           ✓ 4 groups
+        💬 Seeding posts...
+           ✓ 12 posts
+        💬 Seeding replies...
+           ✓ 18 replies
+        ✅ Database seeded successfully!
+        ```
+
+        <Check>
+          Seeding complete! Your database now has demo data.
+        </Check>
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Docker">
+    ### Run Seed Script in Docker Container
+
+    <Steps>
+      <Step title="Start services">
+        ```bash
+        docker compose up -d
+        ```
+      </Step>
+
+      <Step title="Execute seed script inside container">
+        ```bash
+        docker compose exec server node seed.js
+        ```
+
+        <Note>
+          The `exec` command runs a command inside the running `server` container.
+        </Note>
+      </Step>
+
+      <Step title="Verify output">
+        Same output as local development (see above).
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+---
+
+## Seeded Data Details
+
+### Users
+
+The seed script creates 10 users with realistic profiles:
+
+<Tabs>
+  <Tab title="Educators (7)">
+    <CardGroup cols={2}>
+      <Card>
+        **Brad Traversy**  
+        `user_seed_educator1`  
+        brad@traversymedia.com
+      </Card>
+      <Card>
+        **Corey Schafer**  
+        `user_seed_educator2`  
+        corey@coreyms.com
+      </Card>
+      <Card>
+        **Nana Janashia**  
+        `user_seed_educator3`  
+        nana@techworld-with-nana.com
+      </Card>
+      <Card>
+        **Gary Simon**  
+        `user_seed_educator4`  
+        gary@designcourse.com
+      </Card>
+      <Card>
+        **Jeff Delaney**  
+        `user_seed_educator5`  
+        jeff@fireship.io
+      </Card>
+      <Card>
+        **Gaurav Sen**  
+        `user_seed_educator6`  
+        gaurav@gauravsen.com
+      </Card>
+      <Card>
+        **Chuck Keith**  
+        `user_seed_educator7`  
+        chuck@networkchuck.com
+      </Card>
+    </CardGroup>
+
+    <Accordion title="View educator data structure">
+    ```javascript server/seed.js:21-70
+    {
+      _id: 'user_seed_educator1',
+      name: 'Brad Traversy',
+      email: 'brad@traversymedia.com',
+      imageUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=bradtraversy',
+      enrolledCourses: [],
+    }
+    ```
+    </Accordion>
+  </Tab>
+
+  <Tab title="Students (3)">
+    <CardGroup cols={3}>
+      <Card>
+        **Rohan Das**  
+        `user_seed_student1`  
+        rohan@example.com  
+        Enrolled in 6 courses
+      </Card>
+      <Card>
+        **Sneha Patel**  
+        `user_seed_student2`  
+        sneha@example.com  
+        Enrolled in 6 courses
+      </Card>
+      <Card>
+        **Vikram Nair**  
+        `user_seed_student3`  
+        vikram@example.com  
+        Enrolled in 7 courses
+      </Card>
+    </CardGroup>
+
+    <Accordion title="View student data structure">
+    ```javascript server/seed.js:72-91
+    {
+      _id: 'user_seed_student1',
+      name: 'Rohan Das',
+      email: 'rohan@example.com',
+      imageUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=rohan',
+      enrolledCourses: [
+        courseWeb._id,
+        courseUX._id,
+        courseTS._id,
+        courseRN._id,
+        courseSD._id,
+        courseNext._id,
+      ],
+    }
+    ```
+    </Accordion>
+  </Tab>
+</Tabs>
+
+### Courses
+
+The seed script creates 10 comprehensive courses with real video URLs:
+
+<CardGroup cols={2}>
+  <Card title="Full-Stack Web Development" icon="react">
+    **Educator:** Brad Traversy  
+    **Price:** ₹3,999 (30% off)  
+    **Chapters:** 3 | **Lectures:** 8 | **Duration:** 177 min  
+    **Students:** 37
+  </Card>
+  <Card title="Data Science & ML" icon="chart-line">
+    **Educator:** Brad Traversy  
+    **Price:** ₹4,499 (20% off)  
+    **Chapters:** 2 | **Lectures:** 5 | **Duration:** 120 min  
+    **Students:** 42
+  </Card>
+  <Card title="UI/UX Design" icon="palette">
+    **Educator:** Corey Schafer  
+    **Price:** ₹2,999 (15% off)  
+    **Chapters:** 2 | **Lectures:** 5 | **Duration:** 115 min  
+    **Students:** 27
+  </Card>
+  <Card title="TypeScript Masterclass" icon="code">
+    **Educator:** Jeff Delaney  
+    **Price:** ₹2,499 (20% off)  
+    **Chapters:** 2 | **Lectures:** 5 | **Duration:** 104 min  
+    **Students:** 32
+  </Card>
+  <Card title="DevOps with Docker & K8s" icon="docker">
+    **Educator:** Nana Janashia  
+    **Price:** ₹3,499 (25% off)  
+    **Chapters:** 2 | **Lectures:** 5 | **Duration:** 128 min  
+    **Students:** 30
+  </Card>
+  <Card title="React Native" icon="mobile">
+    **Educator:** Jeff Delaney  
+    **Price:** ₹3,299 (10% off)  
+    **Chapters:** 2 | **Lectures:** 5 | **Duration:** 104 min  
+    **Students:** 24
+  </Card>
+</CardGroup>
+
+<Accordion title="View course data structure">
+```javascript server/seed.js:104-213
+{
+  courseTitle: 'Full-Stack Web Development with React & Node.js',
+  courseDescription: '## Master modern full-stack development\n\nLearn to build...',
+  courseThumbnail: 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=800&q=80',
+  coursePrice: 3999,
+  isPublished: true,
+  discount: 30,
+  educatorId: 'user_seed_educator1',
+  courseContent: [
+    {
+      chapterId: 'ch_react_basics',
+      chapterOrder: 1,
+      chapterTitle: 'React Fundamentals',
+      chapterContent: [
+        {
+          lectureId: 'lec_jsx',
+          lectureTitle: 'JSX and Components',
+          lectureDuration: 18,
+          lectureUrl: 'https://www.youtube.com/watch?v=SqcY0GlETPk',
+          isPreviewFree: true,
+          lectureOrder: 1,
+        },
+        // ... more lectures
+      ],
+    },
+    // ... more chapters
+  ],
+  courseRatings: [
+    { userId: 'user_seed_student1', rating: 5 },
+    { userId: 'user_seed_student2', rating: 4 },
+  ],
+  averageRating: 3.7,
+  totalRatings: 12,
+  totalLectures: 8,
+  totalDurationMinutes: 177,
+  enrolledStudents: ['user_seed_student1', 'user_seed_student2', ...],
+  totalEnrolledStudents: 37,
+}
+```
+</Accordion>
+
+<Note>
+  All courses use real educational YouTube videos. Video URLs point to actual tutorials (not placeholders).
+</Note>
+
+### Quizzes
+
+Each course chapter includes a quiz with 2-3 questions:
+
+<Accordion title="Example quiz (React Fundamentals)">
+```javascript server/seed.js:1349-1384
+{
+  courseId: courseWeb._id.toString(),
+  chapterId: 'ch_react_basics',
+  chapterTitle: 'React Fundamentals',
+  courseTitle: 'Full-Stack Web Development with React & Node.js',
+  questions: [
+    {
+      question: 'What hook is used to manage local state in a React functional component?',
+      options: ['useEffect', 'useState', 'useRef', 'useContext'],
+      correctIndex: 1,
+      explanation: 'useState returns a stateful value and a setter function.',
+    },
+    {
+      question: 'Which of the following correctly describes JSX?',
+      options: [
+        'A CSS preprocessor',
+        'A JavaScript XML syntax extension',
+        'A Node.js module',
+        'A database query language',
+      ],
+      correctIndex: 1,
+      explanation: 'JSX allows writing HTML-like syntax inside JavaScript files.',
+    },
+    // ... more questions
+  ],
+}
+```
+</Accordion>
+
+**Total:** 15 quizzes across all course chapters.
+
+### Community Groups
+
+Four official community groups for discussions:
+
+<CardGroup cols={2}>
+  <Card title="🌐 Web Development" icon="code">
+    128 members  
+    HTML, CSS, JavaScript, React, Node.js
+  </Card>
+  <Card title="🤖 Data Science & AI" icon="robot">
+    94 members  
+    ML, data analysis, Python, AI
+  </Card>
+  <Card title="🎨 UI/UX Design" icon="palette">
+    76 members  
+    Design systems, Figma, user research
+  </Card>
+  <Card title="💼 Career & Jobs" icon="briefcase">
+    210 members  
+    Resume tips, interviews, job hunting
+  </Card>
+</CardGroup>
+
+<Accordion title="View group data structure">
+```javascript server/seed.js:910-951
+{
+  name: 'Web Development',
+  slug: 'web-development',
+  description: 'Discuss HTML, CSS, JavaScript, React, Node.js and everything web.',
+  icon: '🌐',
+  memberCount: 128,
+  postCount: 0,
+  createdBy: 'system',
+  isOfficial: true,
+}
+```
+</Accordion>
+
+### Purchases & Progress
+
+- **19 completed purchases** linking students to courses
+- **19 course progress records** tracking which lectures each student has completed
+- Realistic progress percentages (some courses 100% complete, others partially watched)
+
+<Accordion title="Example purchase record">
+```javascript server/seed.js:1038-1047
+{
+  courseId: courseWeb._id,
+  userId: 'user_seed_student1',
+  amount: 2799,
+  currency: 'INR',
+  providerOrderId: 'order_seed_001',
+  providerPaymentId: 'pay_seed_001',
+  status: 'completed',
+}
+```
+</Accordion>
+
+<Accordion title="Example progress record">
+```javascript server/seed.js:1216-1223
+{
+  userId: 'user_seed_student1',
+  courseId: courseWeb._id.toString(),
+  completed: false,
+  lectureCompleted: ['lec_jsx', 'lec_hooks', 'lec_express_setup'],
+}
+```
+</Accordion>
+
+---
+
+## Seed Script Deep Dive
+
+### How It Works
+
+The seed script follows this flow:
+
+<Steps>
+  <Step title="Connect to database">
+    ```javascript server/seed.js:7-9
+    import connectDB from './configs/mongodb.js'
+    await connectDB()
+    ```
+  </Step>
+
+  <Step title="Clear existing seed data">
+    ```javascript server/seed.js:959-969
+    await Promise.all([
+      User.deleteMany({ _id: { $regex: /^user_seed_/ } }),
+      Course.deleteMany({ educatorId: { $in: ['user_seed_educator1', ...] } }),
+      Purchase.deleteMany({ userId: { $regex: /^user_seed_/ } }),
+      // ... more deletions
+    ])
+    ```
+
+    <Warning>
+      Only deletes records with `_id` starting with `user_seed_` or `educatorId` matching seed educators. Your real data is safe.
+    </Warning>
+  </Step>
+
+  <Step title="Insert users">
+    ```javascript server/seed.js:972-974
+    const createdUsers = await User.insertMany(users)
+    console.log(`   ✓ ${createdUsers.length} users`)
+    ```
+  </Step>
+
+  <Step title="Insert courses">
+    ```javascript server/seed.js:977-979
+    const createdCourses = await Course.insertMany(courseData)
+    console.log(`   ✓ ${createdCourses.length} courses`)
+    ```
+  </Step>
+
+  <Step title="Update users with enrolled courses">
+    ```javascript server/seed.js:995-1007
+    await User.updateOne(
+      { _id: 'user_seed_student1' },
+      {
+        enrolledCourses: [
+          courseWeb._id,
+          courseUX._id,
+          // ...
+        ],
+      }
+    )
+    ```
+  </Step>
+
+  <Step title="Insert purchases, progress, quizzes, groups, posts, replies">
+    Each collection is populated sequentially with `insertMany()`.
+  </Step>
+</Steps>
+
+### Source Code Location
+
+The seed script is located at:
+
+```
+server/seed.js
+```
+
+**Key sections:**
+- Lines 21-92: User data
+- Lines 104-906: Course data (10 courses with full content)
+- Lines 908-951: Community group data
+- Lines 955-1700+: Main seed function
+
+<Accordion title="View seed.js header">
+```javascript server/seed.js:1-18
+/**
+ * Seed script — populates the SkillRise database with demo data.
+ * Run: node seed.js
+ * Safe to re-run: clears existing seeded collections first.
+ */
+
+import 'dotenv/config'
+import mongoose from 'mongoose'
+import connectDB from './configs/mongodb.js'
+import User from './models/User.js'
+import Course from './models/Course.js'
+import Purchase from './models/Purchase.js'
+import CourseProgress from './models/CourseProgress.js'
+import CommunityPost from './models/CommunityPost.js'
+import Group from './models/Group.js'
+import Reply from './models/Reply.js'
+import Quiz from './models/Quiz.js'
+```
+</Accordion>
+
+---
+
+## Customizing Seed Data
+
+To modify the seed data:
+
+<Steps>
+  <Step title="Open seed.js">
+    ```bash
+    cd server
+    nano seed.js
+    # or use your preferred editor
+    ```
+  </Step>
+
+  <Step title="Modify data arrays">
+    Edit the data arrays at the top of the file:
+
+    ```javascript
+    const users = [
+      {
+        _id: 'user_seed_educator1',
+        name: 'Your Name',
+        email: 'your@email.com',
+        // ...
+      },
+      // Add more users
+    ]
+
+    const courseData = [
+      {
+        courseTitle: 'Your Custom Course',
+        coursePrice: 1999,
+        // ...
+      },
+      // Add more courses
+    ]
+    ```
+  </Step>
+
+  <Step title="Re-run seed script">
+    ```bash
+    npm run seed
+    ```
+  </Step>
+</Steps>
+
+<Accordion title="Example: Add a new educator">
+```javascript
+const users = [
+  // ... existing users
+  {
+    _id: 'user_seed_educator8',
+    name: 'Jane Developer',
+    email: 'jane@example.com',
+    imageUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=janedeveloper',
+    enrolledCourses: [],
+  },
+]
+```
+</Accordion>
+
+<Accordion title="Example: Add a new course">
+```javascript
+const courseData = [
+  // ... existing courses
+  {
+    courseTitle: 'Advanced GraphQL',
+    courseDescription: '## Master GraphQL APIs\n\nLearn schema design, resolvers, and more.',
+    courseThumbnail: 'https://images.unsplash.com/photo-1234567890?w=800&q=80',
+    coursePrice: 2999,
+    isPublished: true,
+    discount: 10,
+    educatorId: 'user_seed_educator1',
+    courseContent: [
+      {
+        chapterId: 'ch_graphql_basics',
+        chapterOrder: 1,
+        chapterTitle: 'GraphQL Fundamentals',
+        chapterContent: [
+          {
+            lectureId: 'lec_graphql_intro',
+            lectureTitle: 'Introduction to GraphQL',
+            lectureDuration: 20,
+            lectureUrl: 'https://www.youtube.com/watch?v=example',
+            isPreviewFree: true,
+            lectureOrder: 1,
+          },
+        ],
+      },
+    ],
+    courseRatings: [],
+    averageRating: 0,
+    totalRatings: 0,
+    totalLectures: 1,
+    totalDurationMinutes: 20,
+    enrolledStudents: [],
+    totalEnrolledStudents: 0,
+  },
+]
+```
+</Accordion>
+
+---
+
+## Verify Seeded Data
+
+### Using MongoDB Shell
+
+```bash
+# Connect to MongoDB
+mongosh
+
+# Switch to SkillRise database
+use SkillRise
+
+# Count seeded users
+db.users.countDocuments({ _id: { $regex: /^user_seed_/ } })
+# Expected: 10
+
+# List seeded courses
+db.courses.find({ educatorId: { $in: ['user_seed_educator1', 'user_seed_educator2'] } }).count()
+# Expected: 10
+
+# View a sample user
+db.users.findOne({ _id: 'user_seed_student1' })
+
+# View a sample course
+db.courses.findOne({ educatorId: 'user_seed_educator1' })
+```
+
+### Using the Application
+
+<Steps>
+  <Step title="Start the application">
+    ```bash
+    # Terminal 1
+    cd server && npm run server
+
+    # Terminal 2
+    cd client && npm run dev
+    ```
+  </Step>
+
+  <Step title="Browse seeded content">
+    1. Open [http://localhost:5173](http://localhost:5173)
+    2. Navigate to **Courses** → See 10 seeded courses
+    3. Navigate to **Community** → See 4 groups
+    4. Sign up with Clerk → Your account is separate from seed data
+  </Step>
+</Steps>
+
+<Note>
+  Seed data uses hardcoded IDs like `user_seed_educator1`. Real users from Clerk will have different IDs (e.g., `user_2abc...`).
+</Note>
+
+---
+
+## Resetting Data
+
+To clear all seeded data:
+
+<Tabs>
+  <Tab title="Re-run seed script">
+    The seed script automatically clears existing seed data before inserting new records:
+
+    ```bash
+    npm run seed
+    ```
+  </Tab>
+
+  <Tab title="Manual deletion">
+    Using MongoDB shell:
+
+    ```javascript
+    use SkillRise
+
+    // Delete seeded users
+    db.users.deleteMany({ _id: { $regex: /^user_seed_/ } })
+
+    // Delete seeded courses
+    db.courses.deleteMany({ educatorId: { $in: [
+      'user_seed_educator1',
+      'user_seed_educator2',
+      'user_seed_educator3',
+      'user_seed_educator4',
+      'user_seed_educator5',
+      'user_seed_educator6',
+      'user_seed_educator7'
+    ] } })
+
+    // Delete related records
+    db.purchases.deleteMany({ userId: { $regex: /^user_seed_/ } })
+    db.courseprogresses.deleteMany({ userId: { $regex: /^user_seed_/ } })
+    db.groups.deleteMany({ createdBy: 'system' })
+    db.communityposts.deleteMany({ authorId: { $regex: /^user_seed_/ } })
+    db.replies.deleteMany({ authorId: { $regex: /^user_seed_/ } })
+    db.quizzes.deleteMany({})
+    ```
+  </Tab>
+
+  <Tab title="Drop entire database (DANGER)">
+    <Warning>
+      **This deletes ALL data, including real users and courses. Use only in development.**
+    </Warning>
+
+    ```javascript
+    use SkillRise
+    db.dropDatabase()
+    ```
+
+    Then re-run seed:
+    ```bash
+    npm run seed
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Seed script hangs or times out">
+    **Symptom:** Script runs but never completes
+
+    **Solutions:**
+    1. Check MongoDB connection:
+       ```bash
+       mongosh $MONGODB_URI/SkillRise --eval "db.stats()"
+       ```
+    2. Verify `MONGODB_URI` in `server/.env`
+    3. Increase connection timeout:
+       ```javascript server/configs/mongodb.js
+       await mongoose.connect(`${process.env.MONGODB_URI}/SkillRise`, {
+         serverSelectionTimeoutMS: 10000,
+       })
+       ```
+  </Accordion>
+
+  <Accordion title="Duplicate key error">
+    **Error:** `E11000 duplicate key error collection: SkillRise.users index: _id_ dup key`
+
+    **Cause:** Seed data already exists in the database.
+
+    **Solutions:**
+    1. The seed script should auto-clear. Verify lines 959-969 in `seed.js`
+    2. Manually delete conflicting records (see [Resetting Data](#resetting-data))
+  </Accordion>
+
+  <Accordion title="No data appears in the app">
+    **Symptom:** Seed completes successfully but app shows no courses
+
+    **Solutions:**
+    1. Verify you're connected to the correct database:
+       ```bash
+       mongosh $MONGODB_URI/SkillRise --eval "db.courses.countDocuments()"
+       ```
+    2. Check that courses are marked as published:
+       ```javascript
+       db.courses.find({ isPublished: true }).count()
+       ```
+    3. Restart the server:
+       ```bash
+       cd server && npm run server
+       ```
+  </Accordion>
+
+  <Accordion title="Videos don't play">
+    **Symptom:** Courses load but lecture videos show "Video unavailable"
+
+    **Cause:** YouTube URLs may be region-restricted or removed.
+
+    **Solutions:**
+    1. This is expected for demo data (videos are real but may have geo-restrictions)
+    2. Replace with your own video URLs in `seed.js:104-906`
+    3. Use a different video platform (Cloudinary, Vimeo, etc.)
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Production Considerations
+
+<Warning>
+  **Never run the seed script in production.** It's intended for development and testing only.
+</Warning>
+
+### Safe Production Data Loading
+
+For production, use migration scripts instead:
+
+<Steps>
+  <Step title="Create migration script">
+    ```javascript server/migrations/001-initial-courses.js
+    import Course from '../models/Course.js'
+
+    export async function up() {
+      await Course.insertMany([
+        // Your production courses
+      ])
+    }
+
+    export async function down() {
+      await Course.deleteMany({ /* your criteria */ })
+    }
+    ```
+  </Step>
+
+  <Step title="Run migration">
+    ```bash
+    node migrations/001-initial-courses.js
+    ```
+  </Step>
+</Steps>
+
+<Info>
+  Consider using a migration tool like [migrate-mongo](https://github.com/seppevs/migrate-mongo) for production deployments.
+</Info>
+
+---
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Start Development" icon="code" href="/getting-started/running-locally">
+    Run SkillRise locally with seeded data
+  </Card>
+  <Card title="Database Schema" icon="database" href="/api-reference/database-schema">
+    Understand the data models
+  </Card>
+  <Card title="API Endpoints" icon="webhook" href="/api-reference/overview">
+    Explore the REST API
+  </Card>
+</CardGroup>

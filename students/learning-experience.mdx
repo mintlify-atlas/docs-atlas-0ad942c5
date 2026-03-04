@@ -1,0 +1,513 @@
+---
+title: 'Learning Experience'
+description: 'Explore the video player, chapter navigation, progress tracking, and quiz features'
+icon: 'play'
+---
+
+## Overview
+
+The learning experience is the core of SkillRise's student platform. The player page (`/player/{courseId}`) combines a full-featured video player, organized chapter navigation, real-time progress tracking, and integrated quizzes into a seamless learning environment.
+
+## Player Page Layout
+
+The player uses a responsive two-column layout:
+
+<img src="/images/student/player-interface.png" alt="Player page showing video on left and chapter list on right" />
+
+**Left Column (Video & Controls)**
+- Custom video player with full controls
+- Current lecture information card
+- Mark complete button
+- Course rating widget
+
+**Right Column (Navigation)**
+- Progress bar with percentage
+- Certificate button (when complete)
+- Collapsible chapter list
+- Quiz buttons per chapter
+
+On mobile, the layout stacks vertically with the video player taking full width.
+
+## Video Player Component
+
+SkillRise features a custom-built video player with professional controls:
+
+### Player Features
+
+<CardGroup cols={2}>
+  <Card title="Playback Controls" icon="play">
+    - Play/Pause toggle
+    - 10-second skip forward/backward
+    - Seek bar with progress indicator
+    - Keyboard shortcuts (Space, Arrow keys)
+  </Card>
+  <Card title="Audio Controls" icon="volume">
+    - Mute/unmute toggle
+    - Volume slider (0-100%)
+    - Visual volume level indicator
+    - Persists across lectures
+  </Card>
+  <Card title="Speed Control" icon="gauge">
+    - 0.5× to 2× playback speeds
+    - 6 preset options
+    - Dropdown selector
+    - Smooth speed transitions
+  </Card>
+  <Card title="Display Options" icon="expand">
+    - Fullscreen mode
+    - Quality selector (Auto, 1080p, 720p, 480p, 360p, 240p)
+    - Auto-hide controls when playing
+    - Responsive aspect ratio
+  </Card>
+</CardGroup>
+
+### Custom Controls Implementation
+
+The player uses ReactPlayer as the video engine but implements custom controls:
+
+```jsx
+<ReactPlayer
+  ref={playerRef}
+  url={lectureUrl}
+  playing={playing}
+  volume={volume}
+  muted={muted}
+  playbackRate={speed}
+  controls={false} // Custom controls only
+  width="100%"
+  height="100%"
+  onProgress={handleProgress}
+  onDuration={handleDuration}
+/>
+```
+
+### Keyboard Shortcuts
+
+<Tabs>
+  <Tab title="Spacebar">
+    **Play/Pause Toggle**
+    
+    Quick start/stop without mouse interaction
+    
+    ```javascript
+    if (e.key === ' ') {
+      e.preventDefault()
+      togglePlay()
+    }
+    ```
+  </Tab>
+  <Tab title="Left Arrow">
+    **Rewind 10 Seconds**
+    
+    Jump backward to replay content
+    
+    ```javascript
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      skipTo(-10)
+    }
+    ```
+  </Tab>
+  <Tab title="Right Arrow">
+    **Forward 10 Seconds**
+    
+    Skip ahead through familiar content
+    
+    ```javascript
+    if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      skipTo(10)
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Skip Hint Overlay
+
+When using keyboard shortcuts, a visual hint appears:
+
+```jsx
+// User presses → arrow
+<div className="skip-hint">
+  +10s
+</div>
+// Fades after 700ms
+```
+
+<img src="/images/student/skip-hint.png" alt="Video player showing +10s skip hint overlay" />
+
+## Lecture Selection
+
+### Chapter Structure Display
+
+Courses are organized into chapters, each containing multiple lectures:
+
+```jsx
+Course
+├── Chapter 1: Introduction
+│   ├── Lecture 1: Welcome
+│   ├── Lecture 2: Setup
+│   └── Lecture 3: Overview
+├── Chapter 2: Core Concepts
+│   ├── Lecture 1: Basics
+│   └── Lecture 2: Advanced
+```
+
+### Chapter Accordion
+
+The sidebar displays collapsible chapters:
+
+- **Chapter header** - Click to expand/collapse
+- **Lecture count** - Number of lessons in chapter
+- **Chevron icon** - Rotates when expanded
+- **Lecture list** - Shows when chapter is open
+
+### Lecture Items
+
+Each lecture in the list shows:
+
+<Steps>
+  <Step title="Completion Icon">
+    - ✓ Green checkmark if completed
+    - ▶ Play icon if not completed
+  </Step>
+  <Step title="Lecture Title">
+    Truncated with ellipsis if too long
+  </Step>
+  <Step title="Duration">
+    Formatted as "Xh Ym" or "Xm"
+  </Step>
+  <Step title="Active State">
+    Currently playing lecture has teal background
+  </Step>
+</Steps>
+
+### Auto-selection Logic
+
+When opening a course, the player intelligently selects a lecture:
+
+```javascript
+// 1. Check localStorage for last played
+const saved = localStorage.getItem(`lastPlayed_${courseId}`)
+if (saved) {
+  setPlayerData(JSON.parse(saved))
+  return
+}
+
+// 2. Find first uncompleted lecture
+for (let chapter of courseContent) {
+  for (let lecture of chapter.lectures) {
+    if (!completed.includes(lecture.id)) {
+      return lecture
+    }
+  }
+}
+
+// 3. Default to first lecture
+return courseContent[0].lectures[0]
+```
+
+## Progress Tracking
+
+### Progress Bar
+
+The top of the sidebar shows overall course progress:
+
+<img src="/images/student/progress-card.png" alt="Progress card showing 67% completion with progress bar" />
+
+Displays:
+- **"Your progress" label** - Section header
+- **Percentage** - Bold, teal number (e.g., "67%")
+- **Progress bar** - Visual indicator with smooth animation
+- **Lecture count** - "12 of 18 lectures completed"
+
+Progress calculation:
+
+```javascript
+const completedCount = progressData.lectureCompleted.length
+const totalLectures = courseData.totalLectures
+const progressPct = Math.round((completedCount / totalLectures) * 100)
+```
+
+### Mark Complete Button
+
+Below the video player, a card shows the current lecture with a completion button:
+
+**Button States:**
+
+<Tabs>
+  <Tab title="Not Completed">
+    ```jsx
+    <button className="bg-teal-600 hover:bg-teal-700">
+      Mark Complete
+    </button>
+    ```
+    Primary teal button, enabled
+  </Tab>
+  <Tab title="Completed">
+    ```jsx
+    <button className="bg-teal-50 text-teal-700 cursor-not-allowed">
+      ✓ Completed
+    </button>
+    ```
+    Disabled state with checkmark, teal outline
+  </Tab>
+</Tabs>
+
+### Progress API Call
+
+Marking a lecture complete triggers:
+
+```javascript
+POST /api/user/update-course-progress
+{
+  courseId: "...",
+  lectureId: "..."
+}
+
+Response:
+{
+  success: true,
+  message: "Lecture marked as completed",
+  isCourseCompleted: true, // If last lecture
+  certificateAvailable: true
+}
+```
+
+When the last lecture is completed:
+- Success toast: "Course completed. Certificate ready."
+- Certificate button appears in sidebar
+- Progress bar animates to 100%
+
+## Quiz Integration
+
+### Chapter Quiz Unlock
+
+Quiz buttons appear when **all lectures in a chapter are marked complete**:
+
+```javascript
+if (chapter.lectures.every(lec => 
+  progressData.lectureCompleted.includes(lec.id)
+)) {
+  // Show quiz button
+}
+```
+
+### Quiz Button Display
+
+<img src="/images/student/quiz-button.png" alt="Quiz button with results badge showing last score" />
+
+Button variations:
+
+<CodeGroup>
+```jsx First Attempt
+<button className="bg-indigo-600">
+  <QuizIcon />
+  Take Chapter Quiz
+</button>
+```
+
+```jsx Retake
+<button className="bg-indigo-600">
+  <QuizIcon />
+  Retake Quiz
+</button>
+<p className="mt-2">🏆 Last: 85% · Mastered</p>
+```
+</CodeGroup>
+
+### Quiz Result Badges
+
+After taking a quiz, a colored badge shows the result:
+
+<CardGroup cols={3}>
+  <Card title="Mastered" icon="trophy">
+    **76-100%**
+    
+    Green badge: "🏆 Mastered"
+  </Card>
+  <Card title="On Track" icon="target">
+    **41-75%**
+    
+    Yellow badge: "🎯 On Track"
+  </Card>
+  <Card title="Needs Review" icon="book">
+    **0-40%**
+    
+    Red badge: "📖 Needs Review"
+  </Card>
+</CardGroup>
+
+## Rating System
+
+Below the lecture controls, students can rate the course:
+
+### Rating Widget
+
+<img src="/images/student/rating-widget.png" alt="5-star rating widget with interactive stars" />
+
+**Features:**
+- **5 interactive stars** - Click to rate 1-5
+- **Hover preview** - Stars light up on hover
+- **Current rating** - Pre-filled if user already rated
+- **Instant update** - Saves on click
+
+### Rating Persistence
+
+```javascript
+const handleRating = async (rating) => {
+  POST /api/user/add-rating
+  { courseId, rating }
+  
+  // Updates course average rating
+  // Stores in user's rating array
+  // Shows success toast
+}
+```
+
+Users can change their rating at any time.
+
+## Certificate Generation
+
+### Certificate Button
+
+When course is 100% complete, a certificate card appears:
+
+```jsx
+{progressPct === 100 && (
+  <div className="certificate-card">
+    <p className="font-semibold">Certificate</p>
+    <p className="text-xs">View your course completion certificate.</p>
+    <button onClick={viewCertificate}>
+      {loading ? 'Opening...' : 'View Certificate'}
+    </button>
+  </div>
+)}
+```
+
+### Certificate Download Flow
+
+<Steps>
+  <Step title="Request Certificate">
+    ```javascript
+    GET /api/user/certificate/{courseId}
+    ```
+  </Step>
+  <Step title="Backend Generation">
+    - Verifies 100% completion
+    - Generates PDF with student name, course title, date
+    - Uploads to cloud storage
+    - Returns PDF URL
+  </Step>
+  <Step title="Open in New Tab">
+    ```javascript
+    if (data.pdfUrl) {
+      window.open(data.pdfUrl, '_blank', 'noopener,noreferrer')
+    }
+    ```
+  </Step>
+</Steps>
+
+<Note>
+Certificates are generated on-demand and cached. First request may take 2-3 seconds while the PDF is created.
+</Note>
+
+## Persistence Features
+
+### Last Played Lecture
+
+The player remembers where you left off:
+
+```javascript
+// Save on lecture change
+localStorage.setItem(`lastPlayed_${courseId}`, JSON.stringify({
+  ...lecture,
+  chapter: chapterIndex + 1,
+  lecture: lectureIndex + 1,
+  chapterIndex
+}))
+
+// Restore on page load
+const saved = localStorage.getItem(`lastPlayed_${courseId}`)
+if (saved) {
+  setPlayerData(JSON.parse(saved))
+  setOpenSections({ [data.chapterIndex]: true })
+}
+```
+
+Benefits:
+- Resume exactly where you stopped
+- Works across browser sessions
+- Chapter auto-expands to show current lecture
+
+### Video Playback Position
+
+ReactPlayer maintains playback position during:
+- Speed changes
+- Quality adjustments
+- Fullscreen toggles
+- Volume modifications
+
+## Mobile Experience
+
+### Responsive Layout
+
+<Tabs>
+  <Tab title="Desktop (lg+)">
+    Two columns side-by-side
+    - Video player: 60% width
+    - Sidebar: 40% width (sticky)
+  </Tab>
+  <Tab title="Tablet (md)">
+    Two columns with adjusted ratios
+    - Video player: 65% width
+    - Sidebar: 35% width
+  </Tab>
+  <Tab title="Mobile (sm)">
+    Single column stack
+    - Video: Full width
+    - Controls: Full width
+    - Sidebar: Full width below
+  </Tab>
+</Tabs>
+
+### Touch Optimizations
+
+- **Large touch targets** - All buttons 44px+ height
+- **Swipe gestures** - Disabled to prevent conflicts
+- **Auto-hide controls** - 2.5 second delay
+- **Tap to show controls** - Single tap reveals interface
+
+## Performance Optimizations
+
+<AccordionGroup>
+  <Accordion title="Lazy Loading">
+    Video player only initializes when component mounts. ReactPlayer handles lazy loading of video source.
+  </Accordion>
+  
+  <Accordion title="Memoized Calculations">
+    Progress percentages and completion states are memoized to prevent recalculation on every render.
+  </Accordion>
+  
+  <Accordion title="Debounced Progress Updates">
+    Progress bar only updates every 100ms during playback to reduce re-renders.
+  </Accordion>
+  
+  <Accordion title="Optimistic UI">
+    Mark complete button updates UI immediately, API call happens in background.
+  </Accordion>
+</AccordionGroup>
+
+## Accessibility Features
+
+<Check>Keyboard navigation for all video controls</Check>
+<Check>ARIA labels on interactive elements</Check>
+<Check>Focus management for modal dialogs</Check>
+<Check>Screen reader announcements for state changes</Check>
+<Check>Sufficient color contrast (WCAG AA compliant)</Check>
+
+## Related Features
+
+- [AI Assistant](/students/ai-assistant) - Get help while learning
+- [Progress Tracking](/students/progress-tracking) - View all enrolled courses
+- [Enrolling Courses](/students/enrolling-courses) - Start your learning journey

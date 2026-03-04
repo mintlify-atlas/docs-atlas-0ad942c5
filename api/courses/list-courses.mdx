@@ -1,0 +1,287 @@
+---
+title: 'List Courses'
+api: 'GET /api/course/all'
+description: 'Retrieve a list of all published courses'
+---
+
+## Endpoint
+
+```
+GET /api/course/all
+```
+
+## Authentication
+
+No authentication required. This is a public endpoint.
+
+## Query Parameters
+
+This endpoint does not accept any query parameters.
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates whether the request was successful
+</ResponseField>
+
+<ResponseField name="courses" type="array" required>
+  Array of published course objects
+  
+  <Expandable title="Course Object">
+    <ResponseField name="_id" type="string" required>
+      Unique identifier for the course
+    </ResponseField>
+    
+    <ResponseField name="courseTitle" type="string" required>
+      Title of the course
+    </ResponseField>
+    
+    <ResponseField name="courseDescription" type="string" required>
+      Detailed description of the course
+    </ResponseField>
+    
+    <ResponseField name="courseThumbnail" type="string">
+      URL to the course thumbnail image
+    </ResponseField>
+    
+    <ResponseField name="coursePrice" type="number" required>
+      Price of the course in the platform's currency
+    </ResponseField>
+    
+    <ResponseField name="isPublished" type="boolean" required>
+      Publication status (always true for this endpoint)
+    </ResponseField>
+    
+    <ResponseField name="discount" type="number" required>
+      Discount percentage applied to the course (0-100)
+    </ResponseField>
+    
+    <ResponseField name="averageRating" type="number">
+      Average rating of the course (0-5)
+    </ResponseField>
+    
+    <ResponseField name="totalRatings" type="number">
+      Total number of ratings received
+    </ResponseField>
+    
+    <ResponseField name="totalLectures" type="number">
+      Total number of lectures in the course
+    </ResponseField>
+    
+    <ResponseField name="totalDurationMinutes" type="number">
+      Total duration of the course in minutes
+    </ResponseField>
+    
+    <ResponseField name="educatorId" type="object" required>
+      Educator information (populated)
+      
+      <Expandable title="Educator Object">
+        <ResponseField name="_id" type="string">
+          Unique identifier for the educator
+        </ResponseField>
+        
+        <ResponseField name="name" type="string">
+          Name of the educator
+        </ResponseField>
+        
+        <ResponseField name="imageUrl" type="string">
+          URL to the educator's profile image
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="totalEnrolledStudents" type="number">
+      Total number of students enrolled in the course
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of when the course was created
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="string">
+      ISO 8601 timestamp of when the course was last updated
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Success Response
+
+<ResponseExample>
+```json Success (200)
+{
+  "success": true,
+  "courses": [
+    {
+      "_id": "65f8a2b3c4d5e6f7a8b9c0d1",
+      "courseTitle": "Complete Web Development Bootcamp",
+      "courseDescription": "Learn web development from scratch with HTML, CSS, JavaScript, React, Node.js and more",
+      "courseThumbnail": "https://example.com/thumbnails/web-dev-bootcamp.jpg",
+      "coursePrice": 49.99,
+      "isPublished": true,
+      "discount": 20,
+      "averageRating": 4.7,
+      "totalRatings": 342,
+      "totalLectures": 156,
+      "totalDurationMinutes": 1840,
+      "educatorId": {
+        "_id": "65f8a1b2c3d4e5f6a7b8c9d0",
+        "name": "John Smith",
+        "imageUrl": "https://example.com/profiles/john-smith.jpg"
+      },
+      "totalEnrolledStudents": 1523,
+      "createdAt": "2024-03-15T10:30:00.000Z",
+      "updatedAt": "2024-03-20T14:22:00.000Z"
+    },
+    {
+      "_id": "65f8a2b3c4d5e6f7a8b9c0d2",
+      "courseTitle": "Data Science with Python",
+      "courseDescription": "Master data analysis, visualization, and machine learning with Python",
+      "courseThumbnail": "https://example.com/thumbnails/data-science.jpg",
+      "coursePrice": 79.99,
+      "isPublished": true,
+      "discount": 0,
+      "averageRating": 4.9,
+      "totalRatings": 587,
+      "totalLectures": 203,
+      "totalDurationMinutes": 2650,
+      "educatorId": {
+        "_id": "65f8a1b2c3d4e5f6a7b8c9d1",
+        "name": "Sarah Johnson",
+        "imageUrl": "https://example.com/profiles/sarah-johnson.jpg"
+      },
+      "totalEnrolledStudents": 2341,
+      "createdAt": "2024-03-10T08:15:00.000Z",
+      "updatedAt": "2024-03-18T16:45:00.000Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+### Error Response
+
+<ResponseExample>
+```json Server Error (500)
+{
+  "success": false,
+  "message": "An unexpected error occurred"
+}
+```
+</ResponseExample>
+
+## Error Codes
+
+<ResponseField name="500" type="Internal Server Error">
+  An unexpected error occurred while fetching courses. This typically indicates a database connection issue or server error.
+</ResponseField>
+
+## Implementation Notes
+
+- This endpoint only returns courses where `isPublished` is `true`
+- The following fields are excluded from the response for performance:
+  - `courseContent` (chapter and lecture details)
+  - `courseRatings` (individual user ratings)
+  - `enrolledStudents` (list of enrolled student IDs)
+- The `educatorId` field is populated with basic educator information (name and image)
+- Courses are returned in the order they are stored in the database
+
+## Code Examples
+
+<CodeGroup>
+```javascript JavaScript (Fetch)
+const response = await fetch('https://api.skillrise.com/api/course/all');
+const data = await response.json();
+
+if (data.success) {
+  console.log(`Found ${data.courses.length} courses`);
+  data.courses.forEach(course => {
+    console.log(`${course.courseTitle} - $${course.coursePrice}`);
+  });
+} else {
+  console.error('Failed to fetch courses:', data.message);
+}
+```
+
+```javascript Node.js (Axios)
+const axios = require('axios');
+
+try {
+  const { data } = await axios.get('https://api.skillrise.com/api/course/all');
+  
+  if (data.success) {
+    const publishedCourses = data.courses;
+    console.log(`Total published courses: ${publishedCourses.length}`);
+    
+    // Filter courses by educator
+    const educatorCourses = publishedCourses.filter(
+      course => course.educatorId.name === 'John Smith'
+    );
+  }
+} catch (error) {
+  console.error('Error fetching courses:', error.response?.data || error.message);
+}
+```
+
+```python Python (Requests)
+import requests
+
+response = requests.get('https://api.skillrise.com/api/course/all')
+data = response.json()
+
+if data['success']:
+    courses = data['courses']
+    print(f"Found {len(courses)} courses")
+    
+    # Calculate average price
+    avg_price = sum(c['coursePrice'] for c in courses) / len(courses)
+    print(f"Average course price: ${avg_price:.2f}")
+    
+    # Find top-rated courses
+    top_rated = [c for c in courses if c['averageRating'] >= 4.5]
+    print(f"Top-rated courses: {len(top_rated)}")
+else:
+    print(f"Error: {data['message']}")
+```
+
+```bash cURL
+curl -X GET 'https://api.skillrise.com/api/course/all' \
+  -H 'Accept: application/json'
+```
+</CodeGroup>
+
+## Use Cases
+
+### Display Course Catalog
+```javascript
+const displayCourseCatalog = async () => {
+  const response = await fetch('https://api.skillrise.com/api/course/all');
+  const { success, courses } = await response.json();
+  
+  if (success) {
+    return courses.map(course => ({
+      id: course._id,
+      title: course.courseTitle,
+      instructor: course.educatorId.name,
+      price: course.coursePrice * (1 - course.discount / 100), // Apply discount
+      rating: course.averageRating,
+      students: course.totalEnrolledStudents,
+      duration: `${Math.floor(course.totalDurationMinutes / 60)}h ${course.totalDurationMinutes % 60}m`
+    }));
+  }
+};
+```
+
+### Filter and Search Courses
+```javascript
+const searchCourses = async (query) => {
+  const response = await fetch('https://api.skillrise.com/api/course/all');
+  const { success, courses } = await response.json();
+  
+  if (success) {
+    return courses.filter(course => 
+      course.courseTitle.toLowerCase().includes(query.toLowerCase()) ||
+      course.courseDescription.toLowerCase().includes(query.toLowerCase())
+    );
+  }
+};
+```

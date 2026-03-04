@@ -1,0 +1,208 @@
+---
+title: 'Submit Quiz Result'
+api: 'POST /api/quiz/submit'
+description: 'Submit quiz answers and receive score with AI-powered recommendations'
+---
+
+## Authentication
+
+This endpoint requires user authentication. Include the authorization token in your request headers.
+
+```bash
+Authorization: Bearer <user_token>
+```
+
+## Request Body
+
+<ParamField body="courseId" type="string" required>
+  The unique identifier of the course
+</ParamField>
+
+<ParamField body="chapterId" type="string" required>
+  The unique identifier of the chapter
+</ParamField>
+
+<ParamField body="answers" type="array" required>
+  Array of answer indices (0-3) corresponding to each quiz question. Must match the number of questions in the quiz.
+  
+  Example: `[0, 2, 1, 3, 0, 1, 2, 0, 3, 1]`
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the submission was successful
+</ResponseField>
+
+<ResponseField name="result" type="object">
+  The quiz result with scoring and recommendations
+  
+  <Expandable title="result object">
+    <ResponseField name="score" type="number">
+      Number of correct answers
+    </ResponseField>
+    
+    <ResponseField name="total" type="number">
+      Total number of questions
+    </ResponseField>
+    
+    <ResponseField name="percentage" type="number">
+      Score as a percentage (rounded to nearest integer)
+    </ResponseField>
+    
+    <ResponseField name="group" type="string">
+      Performance category: `"needs_review"` (≤40%), `"on_track"` (41-75%), or `"mastered"` (>75%)
+    </ResponseField>
+    
+    <ResponseField name="recommendations" type="string">
+      AI-generated personalized recommendations to improve understanding. Contains 4-5 bullet points with actionable advice.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message if success is false
+</ResponseField>
+
+## Code Examples
+
+<CodeGroup>
+
+```javascript JavaScript
+const response = await fetch('https://api.skillrise.com/api/quiz/submit', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_TOKEN'
+  },
+  body: JSON.stringify({
+    courseId: '507f1f77bcf86cd799439011',
+    chapterId: 'chapter-001',
+    answers: [0, 2, 1, 3, 0, 1, 2, 0, 3, 1]
+  })
+});
+
+const data = await response.json();
+console.log(data.result);
+```
+
+```python Python
+import requests
+
+url = 'https://api.skillrise.com/api/quiz/submit'
+headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_TOKEN'
+}
+payload = {
+    'courseId': '507f1f77bcf86cd799439011',
+    'chapterId': 'chapter-001',
+    'answers': [0, 2, 1, 3, 0, 1, 2, 0, 3, 1]
+}
+
+response = requests.post(url, json=payload, headers=headers)
+data = response.json()
+print(data['result'])
+```
+
+```bash cURL
+curl -X POST https://api.skillrise.com/api/quiz/submit \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "courseId": "507f1f77bcf86cd799439011",
+    "chapterId": "chapter-001",
+    "answers": [0, 2, 1, 3, 0, 1, 2, 0, 3, 1]
+  }'
+```
+
+</CodeGroup>
+
+## Response Example
+
+```json High Performance (Mastered)
+{
+  "success": true,
+  "result": {
+    "score": 9,
+    "total": 10,
+    "percentage": 90,
+    "group": "mastered",
+    "recommendations": "• Excellent work! You've demonstrated strong mastery of variables and data types\n• Challenge yourself by exploring advanced topics like type coercion and symbol data types\n• Practice building small projects that utilize different data types effectively\n• Consider helping peers who are struggling with these concepts to reinforce your knowledge\n• Keep up the great momentum as you progress through the course"
+  }
+}
+```
+
+```json Moderate Performance (On Track)
+{
+  "success": true,
+  "result": {
+    "score": 6,
+    "total": 10,
+    "percentage": 60,
+    "group": "on_track",
+    "recommendations": "• Review the differences between let, const, and var declarations\n• Practice writing code examples for each primitive data type\n• Revisit the lectures on type conversion and comparison operators\n• Try creating a small project that uses different variable types\n• Don't get discouraged - you're making solid progress!"
+  }
+}
+```
+
+```json Low Performance (Needs Review)
+{
+  "success": true,
+  "result": {
+    "score": 3,
+    "total": 10,
+    "percentage": 30,
+    "group": "needs_review",
+    "recommendations": "• Revisit all lectures in this chapter, taking detailed notes\n• Focus on understanding what variables are and how they store data\n• Practice declaring variables using let and const with simple examples\n• Watch supplementary videos on JavaScript data types\n• Consider scheduling time with a tutor or joining a study group\n• Remember that learning takes time - stay persistent!"
+  }
+}
+```
+
+## Error Responses
+
+<ResponseExample>
+```json Invalid Request Data
+{
+  "success": false,
+  "message": "Invalid request data"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Quiz Not Found
+{
+  "success": false,
+  "message": "Quiz not found"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Answer Count Mismatch
+{
+  "success": false,
+  "message": "Answer count does not match question count"
+}
+```
+</ResponseExample>
+
+## Performance Groups
+
+| Group | Percentage Range | Description |
+|-------|-----------------|-------------|
+| `needs_review` | 0-40% | Significant gaps in understanding. Comprehensive review recommended. |
+| `on_track` | 41-75% | Good progress with room for improvement. Additional practice suggested. |
+| `mastered` | 76-100% | Strong comprehension. Ready to advance to next topics. |
+
+## Notes
+
+- The quiz result is automatically saved to the database and associated with the user's account
+- AI recommendations are personalized based on:
+  - The specific questions answered incorrectly
+  - The overall performance level
+  - The chapter content and topics covered
+- Users can retake quizzes multiple times - all attempts are stored
+- The `answers` array must contain exactly the same number of elements as there are questions in the quiz
+- Each answer must be an integer from 0 to 3, corresponding to the option index

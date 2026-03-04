@@ -1,0 +1,252 @@
+---
+title: "Clerk Webhook"
+description: "Handle user lifecycle events from Clerk authentication"
+api: "POST /clerk"
+---
+
+## Overview
+
+This webhook endpoint receives user lifecycle events from Clerk authentication service. It automatically syncs user data between Clerk and the SkillRise database.
+
+## Authentication
+
+### Webhook Signature Verification
+
+Clerk uses [Svix](https://www.svix.com/) for webhook delivery. All requests are verified using HMAC signatures.
+
+**Required Headers:**
+
+- `svix-id`: Unique message identifier
+- `svix-timestamp`: Unix timestamp when the webhook was sent
+- `svix-signature`: HMAC signature for verification
+
+**Verification Process:**
+
+The endpoint verifies the webhook signature using the `CLERK_WEBHOOK_SECRET` environment variable:
+
+```javascript
+const webhook = new Webhook(process.env.CLERK_WEBHOOK_SECRET)
+await webhook.verify(JSON.stringify(req.body), {
+  'svix-id': req.headers['svix-id'],
+  'svix-timestamp': req.headers['svix-timestamp'],
+  'svix-signature': req.headers['svix-signature'],
+})
+```
+
+<Warning>
+  Failed signature verification results in an error being thrown and the webhook being rejected.
+</Warning>
+
+## Event Types
+
+### user.created
+
+Fired when a new user signs up through Clerk.
+
+**Action:** Creates a new user record in the SkillRise database.
+
+**Payload Example:**
+
+```json
+{
+  "type": "user.created",
+  "data": {
+    "id": "user_2abc123xyz",
+    "email_addresses": [
+      {
+        "email_address": "user@example.com"
+      }
+    ],
+    "first_name": "John",
+    "last_name": "Doe",
+    "image_url": "https://img.clerk.com/user_2abc123xyz"
+  }
+}
+```
+
+**Database Fields:**
+
+- `_id`: Clerk user ID
+- `email`: Primary email address
+- `name`: Concatenation of first_name and last_name
+- `imageUrl`: Profile image URL
+
+### user.updated
+
+Fired when a user updates their profile in Clerk.
+
+**Action:** Updates the existing user record in the database.
+
+**Payload Example:**
+
+```json
+{
+  "type": "user.updated",
+  "data": {
+    "id": "user_2abc123xyz",
+    "email_addresses": [
+      {
+        "email_address": "newemail@example.com"
+      }
+    ],
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "image_url": "https://img.clerk.com/user_2abc123xyz"
+  }
+}
+```
+
+**Updated Fields:**
+
+- `email`
+- `name`
+- `imageUrl`
+
+### user.deleted
+
+Fired when a user account is deleted in Clerk.
+
+**Action:** Deletes the corresponding user record from the database.
+
+**Payload Example:**
+
+```json
+{
+  "type": "user.deleted",
+  "data": {
+    "id": "user_2abc123xyz"
+  }
+}
+```
+
+## Request Format
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `svix-id` | string | Yes | Unique message identifier |
+| `svix-timestamp` | string | Yes | Unix timestamp of webhook delivery |
+| `svix-signature` | string | Yes | HMAC signature for verification |
+| `Content-Type` | string | Yes | Must be `application/json` |
+
+### Body
+
+```json
+{
+  "type": "user.created | user.updated | user.deleted",
+  "data": {
+    "id": "string",
+    "email_addresses": [
+      {
+        "email_address": "string"
+      }
+    ],
+    "first_name": "string",
+    "last_name": "string",
+    "image_url": "string"
+  }
+}
+```
+
+## Response Format
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{}
+```
+
+All successful webhook processing returns an empty JSON object.
+
+### Error Response
+
+**Status Code:** `500 Internal Server Error`
+
+```json
+{
+  "success": false,
+  "message": "An unexpected error occurred"
+}
+```
+
+## Error Handling
+
+The endpoint implements comprehensive error handling:
+
+1. **Signature Verification Failure**: If the Svix signature verification fails, an error is thrown and caught by the error handler
+2. **Database Errors**: Any database operation failures are caught and return a 500 error
+3. **Unknown Event Types**: Events with unrecognized types are silently acknowledged with an empty response
+
+<Info>
+  Unknown event types return a successful empty response to prevent Clerk from retrying the webhook.
+</Info>
+
+## Security Best Practices
+
+1. **Environment Variables**: Store `CLERK_WEBHOOK_SECRET` securely in environment variables
+2. **Signature Verification**: Always verify the Svix signature before processing any webhook data
+3. **HTTPS Only**: Configure Clerk to only send webhooks to HTTPS endpoints in production
+4. **Idempotency**: The endpoint handles duplicate webhooks gracefully (e.g., update operations are idempotent)
+
+## Configuration
+
+### Clerk Dashboard Setup
+
+1. Navigate to **Webhooks** in your Clerk dashboard
+2. Click **Add Endpoint**
+3. Enter your endpoint URL: `https://yourdomain.com/clerk`
+4. Select events to subscribe to:
+   - `user.created`
+   - `user.updated`
+   - `user.deleted`
+5. Copy the **Signing Secret** and set it as `CLERK_WEBHOOK_SECRET`
+
+### Environment Variables
+
+```bash
+CLERK_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxxx
+```
+
+## Implementation Reference
+
+**Location:** `server/controllers/webhooks.js:8`
+
+```javascript
+export const clerkWebhooks = async (req, res) => {
+  try {
+    const webhook = new Webhook(process.env.CLERK_WEBHOOK_SECRET)
+    
+    await webhook.verify(JSON.stringify(req.body), {
+      'svix-id': req.headers['svix-id'],
+      'svix-timestamp': req.headers['svix-timestamp'],
+      'svix-signature': req.headers['svix-signature'],
+    })
+    
+    const { data, type } = req.body
+    
+    switch (type) {
+      case 'user.created':
+        // Create user in database
+        break
+      case 'user.updated':
+        // Update user in database
+        break
+      case 'user.deleted':
+        // Delete user from database
+        break
+      default:
+        // Acknowledge unknown events
+    }
+    
+    res.json({})
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'An unexpected error occurred' 
+    })
+  }
+}
+```

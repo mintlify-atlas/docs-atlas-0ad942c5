@@ -1,0 +1,217 @@
+---
+title: 'Generate Quiz'
+api: 'POST /api/quiz/generate'
+description: 'Generate an AI-powered quiz for a specific course chapter (Educator only)'
+---
+
+## Authentication
+
+This endpoint requires educator authentication. Include the authorization token in your request headers.
+
+```bash
+Authorization: Bearer <educator_token>
+```
+
+## Request Body
+
+<ParamField body="courseId" type="string" required>
+  The unique identifier of the course
+</ParamField>
+
+<ParamField body="chapterId" type="string" required>
+  The unique identifier of the chapter within the course
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the quiz generation was successful
+</ResponseField>
+
+<ResponseField name="quiz" type="object">
+  The generated quiz object
+  
+  <Expandable title="quiz object">
+    <ResponseField name="_id" type="string">
+      Unique identifier for the quiz
+    </ResponseField>
+    
+    <ResponseField name="courseId" type="string">
+      The course ID this quiz belongs to
+    </ResponseField>
+    
+    <ResponseField name="chapterId" type="string">
+      The chapter ID this quiz covers
+    </ResponseField>
+    
+    <ResponseField name="courseTitle" type="string">
+      The title of the course
+    </ResponseField>
+    
+    <ResponseField name="chapterTitle" type="string">
+      The title of the chapter
+    </ResponseField>
+    
+    <ResponseField name="questions" type="array">
+      Array of quiz questions (exactly 10 questions)
+      
+      <Expandable title="question object">
+        <ResponseField name="question" type="string">
+          The question text
+        </ResponseField>
+        
+        <ResponseField name="options" type="array">
+          Array of 4 answer options
+        </ResponseField>
+        
+        <ResponseField name="correctIndex" type="number">
+          Index (0-3) of the correct answer in the options array
+        </ResponseField>
+        
+        <ResponseField name="explanation" type="string">
+          Brief explanation of why the answer is correct
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message if success is false
+</ResponseField>
+
+## Code Examples
+
+<CodeGroup>
+
+```javascript JavaScript
+const response = await fetch('https://api.skillrise.com/api/quiz/generate', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_EDUCATOR_TOKEN'
+  },
+  body: JSON.stringify({
+    courseId: '507f1f77bcf86cd799439011',
+    chapterId: 'chapter-001'
+  })
+});
+
+const data = await response.json();
+console.log(data.quiz);
+```
+
+```python Python
+import requests
+
+url = 'https://api.skillrise.com/api/quiz/generate'
+headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_EDUCATOR_TOKEN'
+}
+payload = {
+    'courseId': '507f1f77bcf86cd799439011',
+    'chapterId': 'chapter-001'
+}
+
+response = requests.post(url, json=payload, headers=headers)
+data = response.json()
+print(data['quiz'])
+```
+
+```bash cURL
+curl -X POST https://api.skillrise.com/api/quiz/generate \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_EDUCATOR_TOKEN" \
+  -d '{
+    "courseId": "507f1f77bcf86cd799439011",
+    "chapterId": "chapter-001"
+  }'
+```
+
+</CodeGroup>
+
+## Response Example
+
+```json
+{
+  "success": true,
+  "quiz": {
+    "_id": "64a1b2c3d4e5f6789abcdef0",
+    "courseId": "507f1f77bcf86cd799439011",
+    "chapterId": "chapter-001",
+    "courseTitle": "Introduction to JavaScript",
+    "chapterTitle": "Variables and Data Types",
+    "questions": [
+      {
+        "question": "What is the difference between 'let' and 'const' in JavaScript?",
+        "options": [
+          "let allows reassignment, const does not",
+          "const allows reassignment, let does not",
+          "They are exactly the same",
+          "let is block-scoped, const is function-scoped"
+        ],
+        "correctIndex": 0,
+        "explanation": "Variables declared with 'let' can be reassigned, while 'const' creates a constant reference that cannot be reassigned."
+      },
+      {
+        "question": "Which of the following is NOT a primitive data type in JavaScript?",
+        "options": [
+          "string",
+          "number",
+          "array",
+          "boolean"
+        ],
+        "correctIndex": 2,
+        "explanation": "Arrays are objects in JavaScript, not primitive data types. The primitive types are string, number, boolean, null, undefined, symbol, and bigint."
+      }
+    ]
+  }
+}
+```
+
+## Error Responses
+
+<ResponseExample>
+```json Invalid Request Data
+{
+  "success": false,
+  "message": "Invalid request data"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Course Not Found
+{
+  "success": false,
+  "message": "Course not found"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Chapter Not Found
+{
+  "success": false,
+  "message": "Chapter not found"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json AI Generation Error
+{
+  "success": false,
+  "message": "An unexpected error occurred"
+}
+```
+</ResponseExample>
+
+## Notes
+
+- The endpoint uses AI to generate 10 multiple-choice questions based on the chapter's lectures
+- If a quiz already exists for the chapter, it will be replaced with the newly generated one
+- Questions are designed to test conceptual understanding of the chapter topics
+- Each question has exactly 4 options with one correct answer
+- The quiz generation process analyzes all lecture titles within the chapter to create relevant questions

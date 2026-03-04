@@ -1,0 +1,553 @@
+---
+title: Learning Roadmaps
+description: Generate personalized and custom learning roadmaps using AI
+---
+
+## Overview
+
+The Learning Roadmap endpoints use Groq AI to generate comprehensive, structured learning paths. There are two types:
+
+1. **Personal Roadmap**: Analyzes a student's enrolled courses and progress to create a personalized learning journey
+2. **Custom Roadmap**: Generates a learning path for any topic on demand
+
+Both endpoints leverage the same AI service with structured JSON output for consistent, actionable guidance.
+
+---
+
+## POST /api/user/generate-personal-roadmap
+
+Generate a personalized learning roadmap based on the authenticated user's enrolled courses and progress.
+
+### Authentication
+
+Requires JWT authentication token in the Authorization header.
+
+### Request Body
+
+No request body required. The endpoint automatically analyzes the authenticated user's data.
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the roadmap was successfully generated.
+</ResponseField>
+
+<ResponseField name="roadmap" type="object">
+  The personalized learning roadmap.
+  <Expandable title="Roadmap Structure">
+    <ResponseField name="title" type="string">
+      Title of the roadmap (typically "Your Personalized Learning Roadmap").
+    </ResponseField>
+    <ResponseField name="summary" type="string">
+      4-5 sentence motivating overview of the learning journey and potential.
+    </ResponseField>
+    <ResponseField name="stages" type="array">
+      Learning stages organized by progress level.
+      <Expandable title="Stage Object">
+        <ResponseField name="id" type="string">
+          Stage identifier: `mastered`, `in_progress`, `next_steps`, or `career_paths`.
+        </ResponseField>
+        <ResponseField name="label" type="string">
+          Human-readable stage label.
+        </ResponseField>
+        <ResponseField name="status" type="string">
+          Stage status: `completed`, `current`, `upcoming`, or `future`.
+        </ResponseField>
+        <ResponseField name="icon" type="string">
+          Emoji icon representing the stage.
+        </ResponseField>
+        <ResponseField name="description" type="string">
+          4-5 sentence description of the stage.
+        </ResponseField>
+        <ResponseField name="skills" type="array" optional>
+          Array of skills mastered or being learned.
+        </ResponseField>
+        <ResponseField name="highlights" type="array" optional>
+          Key achievements (mastered stage).
+        </ResponseField>
+        <ResponseField name="courses" type="array" optional>
+          Active courses with completion percentage (in_progress stage).
+        </ResponseField>
+        <ResponseField name="recommendations" type="array" optional>
+          Recommended topics with priority and reasoning (next_steps stage).
+        </ResponseField>
+        <ResponseField name="paths" type="array" optional>
+          Career paths with readiness percentage and skill gaps (career_paths stage).
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="courseStats" type="array">
+  Detailed statistics for each enrolled course.
+  <Expandable title="Course Stats Object">
+    <ResponseField name="title" type="string">
+      Course title.
+    </ResponseField>
+    <ResponseField name="description" type="string">
+      Course description (HTML stripped, max 250 chars).
+    </ResponseField>
+    <ResponseField name="completionPercent" type="number">
+      Completion percentage (0-100).
+    </ResponseField>
+    <ResponseField name="totalLectures" type="number">
+      Total number of lectures in the course.
+    </ResponseField>
+    <ResponseField name="doneLectures" type="number">
+      Number of completed lectures.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "roadmap": {
+    "title": "Your Personalized Learning Roadmap",
+    "summary": "You've built a strong foundation in web development and are making excellent progress in full-stack technologies. Your completion of frontend frameworks demonstrates dedication to modern development practices. With continued focus on backend systems and databases, you're on track to become a versatile full-stack developer. Your learning journey shows great momentum and diverse skill acquisition.",
+    "stages": [
+      {
+        "id": "mastered",
+        "label": "What You've Mastered",
+        "status": "completed",
+        "icon": "🏆",
+        "skills": [
+          "HTML5 & Semantic Markup",
+          "CSS3 & Responsive Design",
+          "JavaScript ES6+",
+          "React Fundamentals"
+        ],
+        "highlights": [
+          "Completed 'Web Development Fundamentals' with 100% progress",
+          "Built responsive layouts using Flexbox and Grid",
+          "Mastered React component lifecycle and hooks"
+        ],
+        "description": "You've successfully completed foundational web development courses, demonstrating strong proficiency in modern frontend technologies. Your understanding of HTML semantics, CSS layout systems, and JavaScript fundamentals provides a solid base. The completion of React fundamentals shows you're ready for component-based architecture. These skills position you well for frontend development roles."
+      },
+      {
+        "id": "in_progress",
+        "label": "Currently Building",
+        "status": "current",
+        "icon": "⚡",
+        "skills": [
+          "Node.js & Express",
+          "MongoDB & Mongoose",
+          "RESTful API Design"
+        ],
+        "courses": [
+          {
+            "title": "Full Stack Web Development",
+            "completion": 45
+          },
+          {
+            "title": "Advanced JavaScript Patterns",
+            "completion": 30
+          }
+        ],
+        "description": "You're actively developing backend skills with Node.js and database management. Your progress in full-stack development (45% complete) shows consistent learning momentum. Understanding RESTful APIs and Express middleware will enable you to build complete applications. Continue focusing on server-side architecture and database modeling to strengthen your backend capabilities."
+      },
+      {
+        "id": "next_steps",
+        "label": "Recommended Next Steps",
+        "status": "upcoming",
+        "icon": "🎯",
+        "recommendations": [
+          {
+            "title": "Authentication & Authorization",
+            "priority": "high",
+            "reason": "Essential for building secure production applications and complements your current backend learning"
+          },
+          {
+            "title": "API Security Best Practices",
+            "priority": "high",
+            "reason": "Critical skill gap before deploying real-world applications"
+          },
+          {
+            "title": "Testing with Jest & React Testing Library",
+            "priority": "medium",
+            "reason": "Improve code quality and confidence in your applications"
+          },
+          {
+            "title": "Docker & Containerization",
+            "priority": "medium",
+            "reason": "Modern deployment skill that's increasingly required by employers"
+          }
+        ],
+        "description": "To advance toward full-stack proficiency, prioritize security concepts and testing. Authentication patterns will make your applications production-ready. Learning testing frameworks will improve your code quality and employability. Containerization skills will prepare you for modern DevOps workflows. These topics align perfectly with your current trajectory and fill important gaps."
+      },
+      {
+        "id": "career_paths",
+        "label": "Career Destinations",
+        "status": "future",
+        "icon": "🚀",
+        "paths": [
+          {
+            "title": "Full-Stack Web Developer",
+            "readiness": 70,
+            "gap": [
+              "Production deployment experience",
+              "Advanced state management"
+            ]
+          },
+          {
+            "title": "Frontend React Developer",
+            "readiness": 85,
+            "gap": [
+              "TypeScript proficiency",
+              "Advanced React patterns"
+            ]
+          },
+          {
+            "title": "Backend Node.js Developer",
+            "readiness": 55,
+            "gap": [
+              "Microservices architecture",
+              "Database optimization",
+              "Message queues"
+            ]
+          }
+        ],
+        "description": "Your skill set is well-aligned for full-stack and frontend development roles. You're particularly strong for React-focused positions, with only minor gaps in TypeScript and advanced patterns. As you complete your backend courses, full-stack opportunities will become highly accessible. Backend-specific roles are within reach after gaining experience with scaling and architecture patterns. All three paths are viable based on your current foundation."
+      }
+    ]
+  },
+  "courseStats": [
+    {
+      "title": "Web Development Fundamentals",
+      "description": "Learn HTML, CSS, and JavaScript from scratch to build modern websites",
+      "completionPercent": 100,
+      "totalLectures": 42,
+      "doneLectures": 42
+    },
+    {
+      "title": "Full Stack Web Development",
+      "description": "Master Node.js, Express, MongoDB and React to build complete web applications",
+      "completionPercent": 45,
+      "totalLectures": 68,
+      "doneLectures": 31
+    },
+    {
+      "title": "Advanced JavaScript Patterns",
+      "description": "Deep dive into JavaScript design patterns, async programming, and performance optimization",
+      "completionPercent": 30,
+      "totalLectures": 35,
+      "doneLectures": 11
+    }
+  ]
+}
+```
+
+### Error Responses
+
+<ResponseExample>
+```json 400 Bad Request
+{
+  "success": false,
+  "message": "No enrolled courses found. Enroll in some courses first."
+}
+```
+
+```json 500 Internal Server Error
+{
+  "success": false,
+  "message": "An unexpected error occurred"
+}
+```
+</ResponseExample>
+
+---
+
+## POST /api/user/generate-custom-roadmap
+
+Generate a learning roadmap for any topic specified by the user.
+
+### Authentication
+
+Requires JWT authentication token in the Authorization header.
+
+### Request Body
+
+<ParamField body="topic" type="string" required>
+  The learning topic to generate a roadmap for. Must be 2-120 characters. Special characters and extra whitespace are sanitized.
+</ParamField>
+
+### Request Example
+
+```json
+{
+  "topic": "Machine Learning with Python"
+}
+```
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the roadmap was successfully generated.
+</ResponseField>
+
+<ResponseField name="roadmap" type="object">
+  The custom learning roadmap.
+  <Expandable title="Roadmap Structure">
+    <ResponseField name="title" type="string">
+      Title of the roadmap (topic + " — Learning Roadmap").
+    </ResponseField>
+    <ResponseField name="summary" type="string">
+      2-3 sentence overview of the learning path.
+    </ResponseField>
+    <ResponseField name="stages" type="array">
+      Learning stages from foundations to mastery.
+      <Expandable title="Stage Object">
+        <ResponseField name="id" type="string">
+          Stage identifier: `foundations`, `core_skills`, `advanced`, or `mastery`.
+        </ResponseField>
+        <ResponseField name="label" type="string">
+          Human-readable stage label.
+        </ResponseField>
+        <ResponseField name="status" type="string">
+          Always `upcoming` or `future` for custom roadmaps.
+        </ResponseField>
+        <ResponseField name="icon" type="string">
+          Emoji icon representing the stage.
+        </ResponseField>
+        <ResponseField name="description" type="string">
+          1-2 sentence description of the stage.
+        </ResponseField>
+        <ResponseField name="skills" type="array">
+          Skills to learn in this stage.
+        </ResponseField>
+        <ResponseField name="timeEstimate" type="string" optional>
+          Estimated time to complete the stage.
+        </ResponseField>
+        <ResponseField name="resources" type="array" optional>
+          Types of resources to use (foundations stage).
+        </ResponseField>
+        <ResponseField name="projects" type="array" optional>
+          Suggested practice projects (core_skills and advanced stages).
+        </ResponseField>
+        <ResponseField name="paths" type="array" optional>
+          Career/specialization paths (mastery stage).
+        </ResponseField>
+        <ResponseField name="certifications" type="array" optional>
+          Relevant certifications (mastery stage).
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "roadmap": {
+    "title": "Machine Learning with Python — Learning Roadmap",
+    "summary": "This comprehensive roadmap guides you from Python fundamentals through advanced machine learning techniques. You'll build practical skills in data analysis, model development, and deployment. By the end, you'll be equipped to tackle real-world ML problems and pursue specialized career paths.",
+    "stages": [
+      {
+        "id": "foundations",
+        "label": "Prerequisites & Foundations",
+        "status": "upcoming",
+        "icon": "📚",
+        "skills": [
+          "Python Programming Basics",
+          "NumPy & Pandas",
+          "Statistics & Probability",
+          "Linear Algebra Fundamentals"
+        ],
+        "timeEstimate": "3-4 weeks",
+        "resources": [
+          "Interactive Python tutorials",
+          "Statistics online courses",
+          "Math refresher videos"
+        ],
+        "description": "Before diving into machine learning, you need solid Python skills and mathematical foundations. Understanding arrays, data manipulation, and basic statistics is essential for comprehending ML algorithms."
+      },
+      {
+        "id": "core_skills",
+        "label": "Core Skills",
+        "status": "upcoming",
+        "icon": "⚡",
+        "skills": [
+          "Supervised Learning (Regression & Classification)",
+          "Data Preprocessing & Feature Engineering",
+          "Model Evaluation & Validation",
+          "Scikit-learn Library",
+          "Data Visualization with Matplotlib & Seaborn"
+        ],
+        "timeEstimate": "6-10 weeks",
+        "projects": [
+          "House price prediction model",
+          "Customer churn classification",
+          "Exploratory data analysis on real datasets"
+        ],
+        "description": "Master the fundamental ML algorithms and workflows. Learn to prepare data, train models, and evaluate performance using industry-standard tools."
+      },
+      {
+        "id": "advanced",
+        "label": "Advanced Topics",
+        "status": "upcoming",
+        "icon": "🔬",
+        "skills": [
+          "Deep Learning with TensorFlow/PyTorch",
+          "Natural Language Processing",
+          "Computer Vision",
+          "Ensemble Methods & Hyperparameter Tuning"
+        ],
+        "timeEstimate": "8-12 weeks",
+        "projects": [
+          "Neural network image classifier",
+          "Sentiment analysis system"
+        ],
+        "description": "Explore cutting-edge techniques in deep learning and specialized domains. Build neural networks and work with unstructured data like text and images."
+      },
+      {
+        "id": "mastery",
+        "label": "Mastery & Career Paths",
+        "status": "future",
+        "icon": "🚀",
+        "paths": [
+          {
+            "title": "Machine Learning Engineer",
+            "readiness": 0,
+            "gap": []
+          },
+          {
+            "title": "Data Scientist",
+            "readiness": 0,
+            "gap": []
+          },
+          {
+            "title": "AI Research Scientist",
+            "readiness": 0,
+            "gap": []
+          }
+        ],
+        "certifications": [
+          "TensorFlow Developer Certificate",
+          "AWS Machine Learning Specialty"
+        ],
+        "description": "With these skills, you can pursue roles in ML engineering, data science, or AI research. Certifications validate your expertise and enhance employability in this high-demand field."
+      }
+    ]
+  }
+}
+```
+
+### Error Responses
+
+<ResponseExample>
+```json 400 Bad Request
+{
+  "success": false,
+  "message": "Please provide a valid topic (at least 2 characters)."
+}
+```
+
+```json 500 Internal Server Error
+{
+  "success": false,
+  "message": "An unexpected error occurred"
+}
+```
+</ResponseExample>
+
+---
+
+## How It Works
+
+### Groq AI Integration
+
+Both endpoints use the same AI service with the following configuration:
+
+- **Model**: `openai/gpt-oss-120b` - A 120B parameter open-source model
+- **Temperature**: 0.7 - Balanced between creativity and consistency
+- **Max Tokens**: 5000 - Supports comprehensive roadmaps
+- **Top P**: 1.0 - Full probability mass for response generation
+- **Streaming**: Disabled - Returns complete JSON responses
+
+### JSON Parsing
+
+The system uses a multi-strategy JSON parser to handle various AI response formats:
+
+1. **Direct JSON**: Attempts standard JSON parsing
+2. **Markdown Code Blocks**: Extracts JSON from ```json fences
+3. **Pattern Matching**: Finds JSON objects using regex
+
+This ensures robust parsing even if the AI response includes extra formatting.
+
+### Response Validation
+
+All AI-generated roadmaps are validated using Zod schemas:
+
+```javascript
+const RoadmapStageSchema = z.looseObject({
+  id: z.string(),
+  label: z.string(),
+  status: z.string(),
+})
+
+const RoadmapSchema = z.looseObject({
+  title: z.string().min(1),
+  summary: z.string().min(1),
+  stages: z.array(RoadmapStageSchema).min(1),
+})
+```
+
+Invalid responses trigger an error, prompting the user to try again.
+
+### Personal Roadmap Data Sources
+
+The personal roadmap endpoint aggregates data from:
+
+- `User` model: Enrolled courses with populated course details
+- `CourseProgress` model: Lecture completion tracking
+- `Course` model: Course structure (chapters, lectures, descriptions)
+
+HTML tags are stripped from course descriptions and truncated to 250 characters.
+
+### Input Sanitization (Custom Roadmap)
+
+The topic input is sanitized by:
+
+1. Trimming whitespace
+2. Removing newlines, backticks, quotes, and backslashes
+3. Collapsing multiple spaces into single spaces
+4. Validating length (2-120 characters)
+
+This prevents prompt injection and ensures clean AI input.
+
+## Best Practices
+
+### Personal Roadmap
+
+1. **Enroll in Courses**: Students must have at least one enrolled course
+2. **Complete Quizzes**: Quiz data enhances personalization (though not directly used in roadmaps)
+3. **Regular Progress**: Update course progress to keep roadmaps relevant
+
+### Custom Roadmap
+
+1. **Specific Topics**: Use clear, specific topics like "React Hooks" rather than vague terms like "coding"
+2. **Technology Focus**: Works best for technical skills, frameworks, and tools
+3. **Length**: Keep topics concise (under 50 characters is ideal)
+
+### Error Handling
+
+- Always check the `success` field before using roadmap data
+- Implement retry logic for failed AI generations
+- Provide fallback UI when roadmaps can't be generated
+
+## Performance Considerations
+
+- Personal roadmap generation requires multiple database queries (courses, progress)
+- AI generation typically takes 2-5 seconds depending on Groq API response time
+- Consider implementing caching for personal roadmaps with a TTL based on user activity
+- Custom roadmaps can be cached more aggressively by topic
+
+## Related Endpoints
+
+- [AI Chatbot](/api/ai/chatbot) - Conversational AI assistant
+- [Chat Sessions](/api/ai/chat-sessions) - Manage AI conversations

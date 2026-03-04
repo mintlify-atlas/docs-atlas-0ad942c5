@@ -1,0 +1,203 @@
+---
+title: "Create Course"
+description: "Add a new course to the platform"
+---
+
+<api-endpoint method="POST" path="/api/educator/add-course" />
+
+Create a new course with content, pricing, and thumbnail image. The system automatically calculates total lectures and duration based on the course content structure.
+
+### Authentication
+
+<api-auth>
+  <api-auth-item type="bearer" description="Clerk authentication token required" />
+  <api-auth-item type="role" description="Educator role required (enforced by protectEducator middleware)" />
+</api-auth>
+
+### Request Format
+
+**Content-Type**: `multipart/form-data`
+
+This endpoint requires a multipart form submission with:
+- A JSON string field `courseData` containing the course details
+- An image file field `image` for the course thumbnail
+
+### Request Fields
+
+<api-request>
+  <api-request-item name="courseData" type="string (JSON)" required>
+    JSON-stringified object containing all course details (see schema below)
+  </api-request-item>
+  <api-request-item name="image" type="file" required>
+    Course thumbnail image file. Uploaded to Cloudinary.
+  </api-request-item>
+</api-request>
+
+### Course Data Schema
+
+The `courseData` field must be a JSON string containing:
+
+<api-request>
+  <api-request-item name="courseTitle" type="string" required>
+    Title of the course
+  </api-request-item>
+  <api-request-item name="courseDescription" type="string" required>
+    Detailed description of the course
+  </api-request-item>
+  <api-request-item name="coursePrice" type="number" required>
+    Base price of the course in the platform's currency
+  </api-request-item>
+  <api-request-item name="discount" type="number" required>
+    Discount percentage (0-100)
+  </api-request-item>
+  <api-request-item name="courseContent" type="array" required>
+    Array of chapter objects defining the course structure
+  </api-request-item>
+  <api-request-item name="isPublished" type="boolean" required>
+    Whether the course should be published immediately
+  </api-request-item>
+</api-request>
+
+### Course Content Structure
+
+Each chapter in `courseContent` should have:
+
+```typescript
+{
+  chapterTitle: string,
+  chapterContent: [
+    {
+      lectureTitle: string,
+      lectureDuration: number, // Duration in minutes
+      lectureUrl: string,      // Video URL or resource link
+      // ... other lecture properties
+    }
+  ]
+}
+```
+
+### Request Example
+
+```javascript
+const formData = new FormData();
+
+const courseData = {
+  "courseTitle": "Complete React Development Course",
+  "courseDescription": "Master React from basics to advanced concepts including hooks, context, and performance optimization.",
+  "coursePrice": 99.99,
+  "discount": 20,
+  "courseContent": [
+    {
+      "chapterTitle": "Introduction to React",
+      "chapterContent": [
+        {
+          "lectureTitle": "What is React?",
+          "lectureDuration": 15,
+          "lectureUrl": "https://example.com/lecture1.mp4"
+        },
+        {
+          "lectureTitle": "Setting up your environment",
+          "lectureDuration": 25,
+          "lectureUrl": "https://example.com/lecture2.mp4"
+        }
+      ]
+    },
+    {
+      "chapterTitle": "React Hooks",
+      "chapterContent": [
+        {
+          "lectureTitle": "Understanding useState",
+          "lectureDuration": 30,
+          "lectureUrl": "https://example.com/lecture3.mp4"
+        }
+      ]
+    }
+  ],
+  "isPublished": true
+};
+
+formData.append('courseData', JSON.stringify(courseData));
+formData.append('image', thumbnailFile); // File object
+
+fetch('/api/educator/add-course', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  },
+  body: formData
+});
+```
+
+### Automatic Calculations
+
+The system automatically computes:
+- **totalLectures**: Count of all lectures across all chapters
+- **totalDurationMinutes**: Sum of all lecture durations
+
+For the example above:
+- `totalLectures`: 3
+- `totalDurationMinutes`: 70 (15 + 25 + 30)
+
+### Response
+
+<api-response status="200">
+  <api-response-item name="success" type="boolean">
+    Indicates if the course was created successfully
+  </api-response-item>
+  <api-response-item name="message" type="string">
+    Status message
+  </api-response-item>
+</api-response>
+
+### Response Examples
+
+<CodeGroup>
+
+```json Success
+{
+  "success": true,
+  "message": "Course Added Succesfully"
+}
+```
+
+```json Missing Thumbnail
+{
+  "success": false,
+  "message": "Thumbnail Not Attached"
+}
+```
+
+```json Error
+{
+  "success": false,
+  "message": "An unexpected error occurred"
+}
+```
+
+</CodeGroup>
+
+### Process Flow
+
+1. Validates that a thumbnail image is provided
+2. Parses the JSON courseData string
+3. Iterates through all chapters and lectures to calculate:
+   - Total number of lectures
+   - Total duration in minutes
+4. Creates the course document in the database
+5. Uploads the thumbnail to Cloudinary
+6. Updates the course with the Cloudinary URL
+7. Saves the final course document
+
+### Error Handling
+
+- **Missing thumbnail**: Returns `success: false` with specific message
+- **Invalid JSON**: Returns 500 error
+- **Database errors**: Returns 500 error with generic message
+- **Cloudinary upload failure**: Returns 500 error
+
+### Notes
+
+- Only users with the educator role can access this endpoint (enforced by `protectEducator` middleware)
+- The educator's user ID is automatically extracted from the authentication token
+- Course thumbnails are stored in Cloudinary
+- Courses can be created as drafts (`isPublished: false`) or published immediately

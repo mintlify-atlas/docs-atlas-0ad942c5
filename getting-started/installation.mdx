@@ -1,0 +1,409 @@
+---
+title: Installation
+description: Install and set up SkillRise locally with Node.js, npm, and MongoDB
+---
+
+## Prerequisites
+
+Before installing SkillRise, ensure you have the following installed on your system:
+
+<CardGroup cols={2}>
+  <Card title="Node.js 20+" icon="node-js" iconType="duotone">
+    Required for running both client and server
+  </Card>
+  <Card title="npm or yarn" icon="box" iconType="duotone">
+    Package manager for JavaScript dependencies
+  </Card>
+  <Card title="MongoDB" icon="database" iconType="duotone">
+    Local instance or MongoDB Atlas cluster
+  </Card>
+  <Card title="Git" icon="code-branch" iconType="duotone">
+    For cloning the repository
+  </Card>
+</CardGroup>
+
+<Note>
+  **Recommended Setup:** Node.js 20.x LTS, npm 10.x, MongoDB 8.x or MongoDB Atlas free tier
+</Note>
+
+---
+
+## Verification
+
+Verify your Node.js and npm versions:
+
+```bash
+node --version
+# Expected: v20.x.x or higher
+
+npm --version
+# Expected: 10.x.x or higher
+```
+
+<Accordion title="Expected output">
+```
+v20.11.0
+10.2.4
+```
+</Accordion>
+
+---
+
+## Clone the Repository
+
+<Steps>
+  <Step title="Clone from GitHub">
+    Clone the SkillRise repository to your local machine:
+
+    ```bash
+    git clone https://github.com/pv-pushkarverma/skillrise.git
+    cd skillrise
+    ```
+
+    <Accordion title="Expected output">
+    ```
+    Cloning into 'skillrise'...
+    remote: Enumerating objects: 1247, done.
+    remote: Counting objects: 100% (1247/1247), done.
+    remote: Compressing objects: 100% (892/892), done.
+    remote: Total 1247 (delta 678), reused 1104 (delta 589)
+    Receiving objects: 100% (1247/1247), 2.34 MiB | 5.21 MiB/s, done.
+    Resolving deltas: 100% (678/678), done.
+    ```
+    </Accordion>
+  </Step>
+
+  <Step title="Verify project structure">
+    Check that the repository was cloned successfully:
+
+    ```bash
+    ls -la
+    ```
+
+    You should see:
+    ```
+    client/
+    server/
+    docker-compose.yml
+    README.md
+    .github/
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Install Dependencies
+
+<Warning>
+  The client and server have separate `package.json` files. You must install dependencies for both.
+</Warning>
+
+### Backend (Server)
+
+<Steps>
+  <Step title="Navigate to server directory">
+    ```bash
+    cd server
+    ```
+  </Step>
+
+  <Step title="Install npm packages">
+    ```bash
+    npm install
+    ```
+
+    This installs all dependencies including:
+    - **express** (v5.1.0) - Web framework
+    - **mongoose** (v8.13.2) - MongoDB ODM
+    - **@clerk/express** (v1.4.8) - Authentication
+    - **cloudinary** (v2.6.0) - Media uploads
+    - **groq-sdk** (v0.34.0) - AI chat
+    - **razorpay** (v2.9.6) - Payments
+
+    <Accordion title="Full installation output">
+    ```
+    added 247 packages, and audited 248 packages in 12s
+
+    38 packages are looking for funding
+      run `npm fund` for details
+
+    found 0 vulnerabilities
+    ```
+    </Accordion>
+  </Step>
+
+  <Step title="Verify installation">
+    Check that `node_modules` was created:
+
+    ```bash
+    ls -d node_modules
+    # Output: node_modules
+    ```
+  </Step>
+</Steps>
+
+### Frontend (Client)
+
+<Steps>
+  <Step title="Navigate to client directory">
+    ```bash
+    cd ../client
+    ```
+  </Step>
+
+  <Step title="Install npm packages">
+    ```bash
+    npm install
+    ```
+
+    This installs all dependencies including:
+    - **react** (v19.0.0) - UI library
+    - **react-router-dom** (v7.5.1) - Routing
+    - **@clerk/clerk-react** (v5.28.2) - Auth UI
+    - **axios** (v1.8.4) - HTTP client
+    - **tailwindcss** (v3.4.17) - Styling
+    - **vite** (v6.3.1) - Build tool
+
+    <Accordion title="Full installation output">
+    ```
+    added 312 packages, and audited 313 packages in 15s
+
+    102 packages are looking for funding
+      run `npm fund` for details
+
+    found 0 vulnerabilities
+    ```
+    </Accordion>
+  </Step>
+</Steps>
+
+---
+
+## MongoDB Setup
+
+Choose one of the following MongoDB setup options:
+
+<Tabs>
+  <Tab title="MongoDB Atlas (Recommended)">
+    ### Use MongoDB Atlas (Free Cloud Database)
+
+    <Steps>
+      <Step title="Create Atlas account">
+        1. Go to [mongodb.com/cloud/atlas](https://mongodb.com/cloud/atlas)
+        2. Sign up for a free account
+        3. Create a new cluster (M0 free tier)
+      </Step>
+
+      <Step title="Configure network access">
+        1. Go to **Network Access** → **Add IP Address**
+        2. Click **Allow Access from Anywhere** (0.0.0.0/0)
+        3. Confirm
+
+        <Warning>
+          For production, restrict to specific IPs only
+        </Warning>
+      </Step>
+
+      <Step title="Create database user">
+        1. Go to **Database Access** → **Add New Database User**
+        2. Choose **Password** authentication
+        3. Username: `skillrise`
+        4. Generate a secure password
+        5. Grant **Read and write to any database** permission
+      </Step>
+
+      <Step title="Get connection string">
+        1. Click **Connect** on your cluster
+        2. Choose **Connect your application**
+        3. Copy the connection string:
+        ```
+        mongodb+srv://skillrise:<password>@cluster0.xxxxx.mongodb.net
+        ```
+        4. Replace `<password>` with your database user password
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Local MongoDB">
+    ### Install MongoDB Locally
+
+    <Tabs>
+      <Tab title="macOS">
+        ```bash
+        # Install via Homebrew
+        brew tap mongodb/brew
+        brew install mongodb-community@8.0
+
+        # Start MongoDB
+        brew services start mongodb-community@8.0
+
+        # Verify it's running
+        mongosh
+        ```
+      </Tab>
+
+      <Tab title="Linux (Ubuntu/Debian)">
+        ```bash
+        # Import MongoDB GPG key
+        curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | \
+          sudo gpg --dearmor -o /usr/share/keyrings/mongodb-server-8.0.gpg
+
+        # Add MongoDB repository
+        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/8.0 multiverse" | \
+          sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+
+        # Install MongoDB
+        sudo apt-get update
+        sudo apt-get install -y mongodb-org
+
+        # Start MongoDB
+        sudo systemctl start mongod
+        sudo systemctl enable mongod
+
+        # Verify
+        mongosh
+        ```
+      </Tab>
+
+      <Tab title="Windows">
+        1. Download MongoDB Community Server from [mongodb.com/try/download/community](https://www.mongodb.com/try/download/community)
+        2. Run the installer (`.msi` file)
+        3. Choose **Complete** installation
+        4. Install MongoDB as a Windows Service
+        5. Open Command Prompt and verify:
+        ```cmd
+        mongosh
+        ```
+      </Tab>
+    </Tabs>
+
+    <Note>
+      Local MongoDB will be available at `mongodb://localhost:27017`
+    </Note>
+  </Tab>
+</Tabs>
+
+---
+
+## Third-Party Service Setup
+
+SkillRise requires API keys from the following services:
+
+<CardGroup cols={2}>
+  <Card title="Clerk" icon="shield-check" href="https://clerk.com">
+    User authentication and webhooks
+  </Card>
+  <Card title="Razorpay" icon="credit-card" href="https://razorpay.com">
+    Payment processing for course purchases
+  </Card>
+  <Card title="Cloudinary" icon="cloud" href="https://cloudinary.com">
+    Media uploads (thumbnails, course content)
+  </Card>
+  <Card title="Groq" icon="robot" href="https://console.groq.com">
+    AI chatbot and roadmap generation
+  </Card>
+</CardGroup>
+
+<Accordion title="Quick signup links">
+- **Clerk:** [dashboard.clerk.com/sign-up](https://dashboard.clerk.com/sign-up)
+- **Razorpay:** [dashboard.razorpay.com/signup](https://dashboard.razorpay.com/signup) (India) or use **Stripe** for international
+- **Cloudinary:** [cloudinary.com/users/register_free](https://cloudinary.com/users/register_free)
+- **Groq:** [console.groq.com](https://console.groq.com) (sign in with Google/GitHub)
+</Accordion>
+
+---
+
+## Verify Installation
+
+Before proceeding to configuration, verify that all components are installed:
+
+```bash
+# Check Node.js
+node --version
+
+# Check npm packages (from server directory)
+cd server && npm list --depth=0
+
+# Check npm packages (from client directory)
+cd ../client && npm list --depth=0
+
+# Check MongoDB connection (if local)
+mongosh --eval "db.version()"
+```
+
+<Check>
+  **Installation complete!** You're ready to proceed to [Configuration](/getting-started/configuration).
+</Check>
+
+---
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="npm install fails with permission errors">
+    **Solution:** Avoid using `sudo` with npm. Instead, configure npm to use a different directory:
+
+    ```bash
+    mkdir ~/.npm-global
+    npm config set prefix '~/.npm-global'
+    echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
+    source ~/.bashrc
+    ```
+  </Accordion>
+
+  <Accordion title="Node version mismatch">
+    **Error:** `The engine "node" is incompatible with this module`
+
+    **Solution:** Use [nvm](https://github.com/nvm-sh/nvm) to install Node.js 20:
+
+    ```bash
+    nvm install 20
+    nvm use 20
+    node --version
+    ```
+  </Accordion>
+
+  <Accordion title="MongoDB connection refused">
+    **For local MongoDB:**
+
+    ```bash
+    # Check if MongoDB is running
+    sudo systemctl status mongod  # Linux
+    brew services list            # macOS
+
+    # Start MongoDB if stopped
+    sudo systemctl start mongod   # Linux
+    brew services start mongodb-community@8.0  # macOS
+    ```
+
+    **For MongoDB Atlas:** Verify network access settings allow your IP address.
+  </Accordion>
+
+  <Accordion title="Port 3000 or 5173 already in use">
+    **Error:** `EADDRINUSE: address already in use :::3000`
+
+    **Solution:** Find and kill the process using the port:
+
+    ```bash
+    # Find process on port 3000
+    lsof -ti:3000 | xargs kill -9
+
+    # Or use a different port
+    PORT=4000 npm run server
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/getting-started/configuration">
+    Set up environment variables and API keys
+  </Card>
+  <Card title="Docker Setup" icon="docker" href="/getting-started/docker-setup">
+    Run SkillRise with Docker Compose
+  </Card>
+</CardGroup>

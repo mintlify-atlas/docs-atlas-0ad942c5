@@ -1,0 +1,169 @@
+---
+title: "Enrolled Students"
+description: "Get detailed enrollment and purchase data"
+---
+
+<api-endpoint method="GET" path="/api/educator/enrolled-students" />
+
+Retrieve detailed information about all students enrolled in the educator's courses, including purchase dates and course details. This endpoint provides a complete purchase history across all courses.
+
+### Authentication
+
+<api-auth>
+  <api-auth-item type="bearer" description="Clerk authentication token required" />
+  <api-auth-item type="role" description="Educator role required (enforced by protectEducator middleware)" />
+</api-auth>
+
+### Response
+
+<api-response status="200">
+  <api-response-item name="success" type="boolean">
+    Indicates if the request was successful
+  </api-response-item>
+  <api-response-item name="enrolledStudents" type="array">
+    Array of enrollment objects with student and purchase details
+  </api-response-item>
+  <api-response-item name="enrolledStudents[].student" type="object">
+    Student information object
+  </api-response-item>
+  <api-response-item name="enrolledStudents[].student._id" type="string">
+    Student's user ID
+  </api-response-item>
+  <api-response-item name="enrolledStudents[].student.name" type="string">
+    Student's name
+  </api-response-item>
+  <api-response-item name="enrolledStudents[].student.imageUrl" type="string">
+    Student's profile image URL
+  </api-response-item>
+  <api-response-item name="enrolledStudents[].courseTitle" type="string">
+    Title of the purchased course
+  </api-response-item>
+  <api-response-item name="enrolledStudents[].purchaseDate" type="string">
+    ISO 8601 timestamp of when the purchase was completed
+  </api-response-item>
+</api-response>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "enrolledStudents": [
+    {
+      "student": {
+        "_id": "user_2a1b3c4d5e6f",
+        "name": "John Smith",
+        "imageUrl": "https://example.com/avatars/john-smith.jpg"
+      },
+      "courseTitle": "Complete React Development Course",
+      "purchaseDate": "2024-03-15T14:32:18.000Z"
+    },
+    {
+      "student": {
+        "_id": "user_9z8y7x6w5v4u",
+        "name": "Jane Doe",
+        "imageUrl": "https://example.com/avatars/jane-doe.jpg"
+      },
+      "courseTitle": "Complete React Development Course",
+      "purchaseDate": "2024-03-16T09:15:42.000Z"
+    },
+    {
+      "student": {
+        "_id": "user_2a1b3c4d5e6f",
+        "name": "John Smith",
+        "imageUrl": "https://example.com/avatars/john-smith.jpg"
+      },
+      "courseTitle": "Advanced Node.js Course",
+      "purchaseDate": "2024-03-18T11:20:33.000Z"
+    },
+    {
+      "student": {
+        "_id": "user_3b2c1d0e9f8g",
+        "name": "Bob Wilson",
+        "imageUrl": "https://example.com/avatars/bob-wilson.jpg"
+      },
+      "courseTitle": "TypeScript Masterclass",
+      "purchaseDate": "2024-03-20T16:45:12.000Z"
+    }
+  ]
+}
+```
+
+### Data Collection Process
+
+1. **Fetch Educator Courses**: Retrieves all courses created by the authenticated educator
+2. **Extract Course IDs**: Creates an array of course IDs for purchase lookup
+3. **Query Purchases**: 
+   - Finds all purchases matching the educator's course IDs
+   - Filters for only **completed** purchases
+   - Populates student information (`name` and `imageUrl`)
+   - Populates course information (`courseTitle`)
+4. **Transform Data**: Maps purchase records to enrollment objects containing:
+   - Student details
+   - Course title
+   - Purchase date (from `createdAt` field)
+
+### Key Differences from Dashboard Endpoint
+
+While the `/dashboard` endpoint provides aggregated statistics, this endpoint offers:
+
+- **Purchase timestamps**: Exact date and time of each enrollment
+- **Individual purchase records**: Each purchase is a separate entry
+- **Complete purchase history**: All completed transactions, not just enrolled students
+- **Chronological data**: Useful for tracking enrollment trends over time
+
+### Use Cases
+
+- Display detailed student enrollment tables
+- Track enrollment trends and purchase history
+- Generate reports on course purchases
+- Show recent student enrollments
+- Export enrollment data for analysis
+- Identify popular courses by purchase frequency
+
+### Filtering and Sorting
+
+The endpoint currently returns all completed purchases. To filter or sort the data:
+
+```javascript
+// Client-side filtering by course
+const reactCourseStudents = enrolledStudents.filter(
+  enrollment => enrollment.courseTitle === "Complete React Development Course"
+);
+
+// Sort by most recent purchases
+const recentEnrollments = enrolledStudents.sort(
+  (a, b) => new Date(b.purchaseDate) - new Date(a.purchaseDate)
+);
+
+// Group by course
+const groupedByCourse = enrolledStudents.reduce((acc, enrollment) => {
+  const course = enrollment.courseTitle;
+  if (!acc[course]) acc[course] = [];
+  acc[course].push(enrollment);
+  return acc;
+}, {});
+```
+
+### Error Response
+
+```json
+{
+  "success": false,
+  "message": "An unexpected error occurred"
+}
+```
+
+### Notes
+
+- Only **completed** purchases are included (pending or failed purchases are excluded)
+- Students who purchased multiple courses will have multiple entries
+- The `purchaseDate` field uses the `createdAt` timestamp from the Purchase model
+- Student information is populated from the User collection via the `userId` reference
+- Course information is populated from the Course collection via the `courseId` reference
+
+### Performance Considerations
+
+- Uses MongoDB population to efficiently join related collections
+- Filters at the database level for optimal performance
+- Returns only necessary student fields (`name`, `imageUrl`) to reduce payload size

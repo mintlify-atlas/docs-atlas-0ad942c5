@@ -1,0 +1,384 @@
+---
+title: Authentication
+description: Authentication methods, Clerk integration, protected routes, and role-based access control
+icon: "shield-halved"
+---
+
+## Overview
+
+The SkillRise API uses **Clerk** for authentication and authorization. Clerk provides secure session management with JWT tokens that include user identity and role-based metadata.
+
+## Authentication Flow
+
+<Steps>
+  <Step title="User Signs In">
+    User authenticates through Clerk on the frontend (sign-up/sign-in)
+  </Step>
+  
+  <Step title="Clerk Issues Token">
+    Clerk generates a JWT session token containing:
+    - `userId` - Unique user identifier
+    - `sessionClaims.metadata.role` - User role (student, educator, admin)
+  </Step>
+  
+  <Step title="Frontend Includes Token">
+    Frontend includes the Clerk session token in API requests (handled automatically by Clerk SDK)
+  </Step>
+  
+  <Step title="API Validates Token">
+    Clerk middleware validates the token and populates `req.auth` with user context
+  </Step>
+  
+  <Step title="Role Check (if required)">
+    Protected routes verify user role via custom middleware
+  </Step>
+</Steps>
+
+## Clerk Middleware
+
+The API uses `@clerk/express` middleware globally:
+
+```javascript
+import { clerkMiddleware } from '@clerk/express'
+
+app.use(clerkMiddleware())
+```
+
+This middleware:
+- Validates Clerk session tokens
+- Populates `req.auth` with authentication context
+- Allows both authenticated and unauthenticated requests
+
+### Auth Context (`req.auth`)
+
+On authenticated requests, `req.auth` contains:
+
+<ParamField path="userId" type="string" required>
+  Clerk user ID (used as MongoDB `_id` for User documents)
+</ParamField>
+
+<ParamField path="sessionClaims" type="object">
+  Clerk session claims object
+</ParamField>
+
+<ParamField path="sessionClaims.metadata.role" type="string">
+  User role: `"student"`, `"educator"`, or `"admin"`
+</ParamField>
+
+## Protected Routes
+
+### User Authentication
+
+User-specific endpoints require authentication via Clerk's `requireAuth()` middleware:
+
+```javascript
+import { requireAuth } from '@clerk/express'
+
+userRouter.use(requireAuth())
+```
+
+All routes under `/api/user/*` are protected:
+
+- `/api/user/data` - Get user profile
+- `/api/user/enrolled-courses` - Get enrolled courses
+- `/api/user/purchase` - Purchase course
+- `/api/user/ai-chat` - AI chatbot
+- And more...
+
+**Unauthenticated Request Response:**
+
+```json
+{
+  "success": false,
+  "message": "Unauthorized Access"
+}
+```
+
+Status Code: `401 Unauthorized`
+
+## Role-Based Access Control
+
+SkillRise implements three user roles with distinct permissions:
+
+### Student (Default)
+
+All authenticated users have student access by default. Students can:
+
+- Browse and purchase courses
+- Track progress and earn certificates
+- Use AI chat assistant
+- Participate in community discussions
+- Take quizzes
+
+### Educator
+
+Educators can create and manage courses. Educator routes use custom middleware:
+
+```javascript
+export const protectEducator = (req, res, next) => {
+  if (!req.auth?.userId) {
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Unauthorized Access' 
+    })
+  }
+
+  const role = req.auth.sessionClaims?.metadata?.role
+
+  if (role !== 'educator') {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Unauthorized Access' 
+    })
+  }
+
+  next()
+}
+```
+
+**Protected Educator Routes:**
+
+- `POST /api/educator/add-course` - Create new course
+- `GET /api/educator/courses` - List educator's courses
+- `GET /api/educator/dashboard` - Dashboard analytics
+- `GET /api/educator/enrolled-students` - Student enrollment data
+- `POST /api/quiz/generate` - Generate AI quiz
+- `GET /api/quiz/educator-insights` - Quiz performance insights
+
+**Non-Educator Request Response:**
+
+```json
+{
+  "success": false,
+  "message": "Unauthorized Access"
+}
+```
+
+Status Code: `403 Forbidden`
+
+### Admin
+
+Admins have full platform access. Admin routes use custom middleware:
+
+```javascript
+export const protectAdmin = (req, res, next) => {
+  if (!req.auth?.userId) {
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Unauthorized Access' 
+    })
+  }
+
+  const role = req.auth.sessionClaims?.metadata?.role
+
+  if (role !== 'admin') {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Unauthorized Access' 
+    })
+  }
+
+  next()
+}
+```
+
+**Protected Admin Routes:**
+
+- `GET /api/admin/stats` - Platform statistics
+- `GET /api/admin/chart-data` - Analytics charts
+- `GET /api/admin/courses` - All courses
+- `GET /api/admin/purchases` - All purchases
+- `GET /api/admin/users` - User management
+- `GET /api/admin/educator-applications` - Educator applications
+- `PATCH /api/admin/educator-applications/:id/approve` - Approve educator
+- `PATCH /api/admin/educator-applications/:id/reject` - Reject educator
+
+**Non-Admin Request Response:**
+
+```json
+{
+  "success": false,
+  "message": "Unauthorized Access"
+}
+```
+
+Status Code: `403 Forbidden`
+
+## Becoming an Educator
+
+Users can apply to become educators through the application system:
+
+<Steps>
+  <Step title="Submit Application">
+    `POST /api/educator/apply` - Submit educator application (no role required)
+  </Step>
+  
+  <Step title="Admin Review">
+    Admin reviews application via `/api/admin/educator-applications`
+  </Step>
+  
+  <Step title="Approval/Rejection">
+    Admin approves or rejects via PATCH endpoints
+  </Step>
+  
+  <Step title="Role Updated">
+    On approval, user's Clerk metadata is updated with `role: "educator"`
+  </Step>
+</Steps>
+
+**Check Application Status:**
+
+```bash
+GET /api/educator/application-status
+```
+
+No role protection - any authenticated user can check their status.
+
+## Public Endpoints
+
+Some endpoints are publicly accessible without authentication:
+
+<ResponseField name="GET /api/course/all" type="Public">
+  List all published courses
+</ResponseField>
+
+<ResponseField name="GET /api/course/:id" type="Public">
+  Get course details (lecture URLs hidden for non-free content)
+</ResponseField>
+
+<ResponseField name="GET /api/certificate/verify/:certificateId" type="Public">
+  Verify certificate authenticity via QR code
+</ResponseField>
+
+<ResponseField name="GET /api/community/groups" type="Public">
+  List community groups (membership requires auth)
+</ResponseField>
+
+<ResponseField name="GET /api/community/posts" type="Public">
+  Browse community posts (voting/posting requires auth)
+</ResponseField>
+
+## Webhooks Authentication
+
+### Clerk Webhooks
+
+Clerk webhooks use **Svix** signature verification:
+
+```javascript
+import { Webhook } from 'svix'
+
+const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET)
+const evt = wh.verify(body, headers)
+```
+
+The webhook handles user lifecycle events to sync data with MongoDB.
+
+### Razorpay Webhooks
+
+Razorpay webhooks use HMAC signature verification:
+
+```javascript
+import crypto from 'crypto'
+
+const expectedSignature = crypto
+  .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
+  .update(JSON.stringify(req.body))
+  .digest('hex')
+
+if (expectedSignature !== receivedSignature) {
+  throw new Error('Invalid signature')
+}
+```
+
+## Example: Making Authenticated Requests
+
+### Frontend (with Clerk React)
+
+```javascript
+import { useAuth } from '@clerk/clerk-react'
+
+const { getToken } = useAuth()
+
+const response = await fetch('http://localhost:3000/api/user/data', {
+  method: 'GET',
+  headers: {
+    'Authorization': `Bearer ${await getToken()}`
+  }
+})
+```
+
+Clerk automatically handles token injection when using `@clerk/clerk-react` hooks.
+
+### Direct API Call (with token)
+
+```bash
+curl -X GET http://localhost:3000/api/user/data \
+  -H "Authorization: Bearer YOUR_CLERK_SESSION_TOKEN"
+```
+
+## Security Best Practices
+
+<Warning>
+  **Never** expose Clerk secret keys on the frontend. Use Clerk's publishable keys only.
+</Warning>
+
+<Note>
+  Rate limiting is tied to `userId` when authenticated, preventing users from bypassing limits by switching IP addresses.
+</Note>
+
+### Token Validation
+
+- Tokens are validated on every request via Clerk middleware
+- Expired tokens receive `401 Unauthorized`
+- Role changes take effect immediately (no token refresh needed)
+
+### CORS Protection
+
+API accepts requests only from configured frontend origin:
+
+```javascript
+app.use(cors({ 
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173' 
+}))
+```
+
+## Troubleshooting
+
+### 401 Unauthorized
+
+<AccordionGroup>
+  <Accordion title="Missing Authorization Header">
+    Ensure Clerk SDK is properly configured and token is included in request headers
+  </Accordion>
+  
+  <Accordion title="Expired Session">
+    User needs to re-authenticate. Clerk SDK handles this automatically.
+  </Accordion>
+  
+  <Accordion title="Invalid Token">
+    Token may be malformed or from wrong Clerk instance. Verify `CLERK_PUBLISHABLE_KEY` matches backend.
+  </Accordion>
+</AccordionGroup>
+
+### 403 Forbidden
+
+<AccordionGroup>
+  <Accordion title="Insufficient Role">
+    User lacks required role (educator/admin) for this endpoint. Check `req.auth.sessionClaims.metadata.role`.
+  </Accordion>
+  
+  <Accordion title="Course Not Purchased">
+    User attempting to access enrolled course content without purchasing. Verify enrollment via `/api/user/enrolled-courses`.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Overview" icon="code" href="/api/overview">
+    Learn about API structure and response formats
+  </Card>
+  <Card title="Endpoints" icon="list" href="/api/endpoints">
+    Browse all available API endpoints
+  </Card>
+</CardGroup>

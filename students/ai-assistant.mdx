@@ -1,0 +1,486 @@
+---
+title: 'AI Learning Assistant'
+description: 'Use the AI chatbot to get personalized help, explanations, and coding support'
+icon: 'sparkles'
+---
+
+## Overview
+
+SkillRise AI is an intelligent learning assistant that helps students understand concepts, debug code, and get personalized explanations. Accessible from `/ai-chat`, the AI assistant provides contextual help throughout your learning journey.
+
+## Chat Interface
+
+The AI chat page features a modern messaging interface designed for educational conversations:
+
+<img src="/images/student/ai-chat-interface.png" alt="AI chat interface with sidebar history and main conversation area" />
+
+### Layout Components
+
+<CardGroup cols={2}>
+  <Card title="History Sidebar" icon="clock-rotate-left">
+    - Previous chat sessions
+    - Organized by date
+    - Quick access to past conversations
+    - Desktop: Always visible
+    - Mobile: Drawer overlay
+  </Card>
+  <Card title="Chat Area" icon="messages">
+    - Message history with alternating bubbles
+    - Real-time typing indicator
+    - Auto-scrolling to latest message
+    - Markdown-rendered responses
+  </Card>
+  <Card title="Input Section" icon="keyboard">
+    - Auto-expanding textarea
+    - Send button (enabled when text present)
+    - Keyboard shortcuts (Shift+Enter)
+    - "Shift+Enter for new line" hint
+  </Card>
+  <Card title="Empty State" icon="sparkle">
+    - "How can I help you?" greeting
+    - Suggested use cases
+    - Welcoming sparkle icon
+    - Clean, centered layout
+  </Card>
+</CardGroup>
+
+## Chat History Sidebar
+
+### Desktop Sidebar
+
+On larger screens, the history sidebar is permanently visible:
+
+```jsx
+<aside className="w-64 shrink-0 flex-col border-r">
+  <div className="p-4 border-b">
+    <p className="text-xs font-semibold uppercase">Chat History</p>
+    <button className="w-full bg-teal-600">+ New Chat</button>
+  </div>
+  <div className="flex-1 overflow-y-auto p-2">
+    {chatHistory.map(chat => (
+      <ChatHistoryItem key={chat.sessionId} {...chat} />
+    ))}
+  </div>
+</aside>
+```
+
+### Mobile Drawer
+
+On mobile, history opens as an overlay drawer:
+
+<Steps>
+  <Step title="Trigger">
+    Tap "History" button in mobile toolbar
+  </Step>
+  <Step title="Overlay">
+    Black translucent backdrop appears
+  </Step>
+  <Step title="Drawer">
+    White panel slides in from left (72 wide)
+  </Step>
+  <Step title="Dismiss">
+    Tap backdrop or X button to close
+  </Step>
+</Steps>
+
+### Chat History Items
+
+Each previous conversation shows:
+
+- **First user message** - Truncated to one line
+- **Last updated date** - Formatted "DD MMM YYYY"
+- **Active state** - Teal background when selected
+- **Delete button** - Trash icon, appears on hover
+
+<img src="/images/student/chat-history-item.png" alt="Chat history item showing title, date, and delete button on hover" />
+
+Delete confirmation:
+```javascript
+const handleDeleteChat = async (sessionId) => {
+  DELETE /api/user/chat/{sessionId}
+  
+  // Remove from list
+  setChatHistory(prev => prev.filter(c => c.sessionId !== sessionId))
+  
+  // Clear active chat if deleted
+  if (sessionId === activeSession) {
+    setSessionId('')
+    setMessages([])
+  }
+}
+```
+
+## Conversation Flow
+
+### Starting a New Chat
+
+Click "+ New Chat" button:
+
+```javascript
+const startNewChat = () => {
+  setMessages([])        // Clear message history
+  setInput('')           // Clear input field
+  setTyping(false)       // Reset typing state
+  setSessionId('')       // New session will be created on first message
+  setShowMobileHistory(false) // Close mobile drawer
+}
+```
+
+### Sending a Message
+
+<Steps>
+  <Step title="User Types">
+    Input textarea auto-expands up to 120px height
+  </Step>
+  <Step title="Submit">
+    Click Send or press Enter (Shift+Enter for new line)
+  </Step>
+  <Step title="Optimistic Update">
+    User message immediately appears with timestamp ID
+  </Step>
+  <Step title="Show Typing">
+    AI avatar with animated dots appears
+  </Step>
+  <Step title="API Call">
+    ```javascript
+    POST /api/user/ai-chat
+    {
+      content: userMessage,
+      sessionId: currentSessionId || undefined
+    }
+    
+    Response:
+    {
+      response: aiMessage,
+      activeSessionId: newOrExistingSession
+    }
+    ```
+  </Step>
+  <Step title="Display Response">
+    AI message appears with Markdown formatting
+  </Step>
+</Steps>
+
+### Message Display
+
+Messages alternate between user and AI with distinct styling:
+
+<Tabs>
+  <Tab title="User Messages">
+    ```jsx
+    <div className="flex flex-row-reverse"> {/* Right-aligned */}
+      <div className="w-8 h-8 rounded-full bg-slate-600">
+        <UserIcon /> {/* User avatar */}
+      </div>
+      <div className="bg-teal-600 text-white rounded-2xl px-4 py-2.5">
+        {message.content}
+      </div>
+    </div>
+    ```
+    - Right-aligned with reverse flex
+    - Teal background, white text
+    - Slate avatar icon
+    - Max width 75%
+  </Tab>
+  <Tab title="AI Messages">
+    ```jsx
+    <div className="flex"> {/* Left-aligned */}
+      <div className="w-8 h-8 rounded-full bg-teal-500">
+        <SparkIcon /> {/* AI sparkle icon */}
+      </div>
+      <div className="bg-gray-50 border rounded-2xl px-4 py-3">
+        <MarkdownRenderer>{message.content}</MarkdownRenderer>
+      </div>
+    </div>
+    ```
+    - Left-aligned
+    - Gray background with border
+    - Teal sparkle avatar
+    - Full-width with markdown
+  </Tab>
+</Tabs>
+
+## AI Capabilities
+
+### What Students Can Ask
+
+<AccordionGroup>
+  <Accordion title="Concept Explanations">
+    **Example Prompts:**
+    - "Explain JavaScript closures in simple terms"
+    - "What's the difference between SQL and NoSQL?"
+    - "How do HTTP requests work?"
+    
+    AI provides clear, educational explanations tailored to the user's level.
+  </Accordion>
+  
+  <Accordion title="Code Help">
+    **Example Prompts:**
+    - "Why is my Python function returning None?"
+    - Paste code block + "What's wrong with this code?"
+    - "How do I add authentication to my React app?"
+    
+    AI can debug code, suggest improvements, and explain best practices.
+  </Accordion>
+  
+  <Accordion title="Course-Related Questions">
+    **Example Prompts:**
+    - "Can you recap the last video about React hooks?"
+    - "I'm stuck on the array methods chapter"
+    - "What should I review before the quiz?"
+    
+    AI has context about SkillRise courses (if implemented with RAG).
+  </Accordion>
+  
+  <Accordion title="Learning Strategy">
+    **Example Prompts:**
+    - "How should I study for web development?"
+    - "What topics should I learn after JavaScript?"
+    - "Can you create a learning plan for data science?"
+    
+    AI can provide personalized learning advice and roadmaps.
+  </Accordion>
+</AccordionGroup>
+
+## Markdown Rendering
+
+AI responses support rich Markdown formatting:
+
+### Supported Elements
+
+<CodeGroup>
+```markdown Code Blocks
+\`\`\`python
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+\`\`\`
+```
+
+```markdown Inline Code
+Use the `map()` function to transform arrays.
+```
+
+```markdown Lists
+- First item
+- Second item
+  - Nested item
+- Third item
+
+1. Ordered item
+2. Another item
+```
+
+```markdown Emphasis
+**Bold text** for emphasis
+*Italic text* for subtle emphasis
+```
+
+```markdown Links
+[React Documentation](https://react.dev)
+```
+</CodeGroup>
+
+### Code Syntax Highlighting
+
+Code blocks automatically detect language and apply syntax highlighting:
+
+```javascript
+// JavaScript example
+const greeting = (name) => {
+  return `Hello, ${name}!`
+}
+```
+
+<img src="/images/student/ai-code-block.png" alt="AI response showing syntax-highlighted code block" />
+
+## Typing Indicator
+
+While AI is generating a response, an animated indicator appears:
+
+```jsx
+{typing && (
+  <div className="flex items-start gap-3">
+    <div className="w-8 h-8 rounded-full bg-teal-500">
+      <SparkIcon />
+    </div>
+    <div className="bg-gray-50 border rounded-2xl px-4 py-3">
+      <div className="flex gap-1.5">
+        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" />
+        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" 
+             style={{ animationDelay: '0.15s' }} />
+        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" 
+             style={{ animationDelay: '0.3s' }} />
+      </div>
+    </div>
+  </div>
+)}
+```
+
+Three dots bounce in sequence to indicate processing.
+
+## Error Handling
+
+When AI requests fail, a fallback message displays:
+
+```javascript
+catch (error) {
+  setMessages(prev => [
+    ...prev,
+    {
+      id: Date.now(),
+      role: 'assistant',
+      content: "Sorry, I'm having trouble connecting. Please try again."
+    }
+  ])
+}
+```
+
+<Warning>
+Don't refresh the page or close the tab immediately after sending a message. Wait for the AI response to ensure your conversation is saved.
+</Warning>
+
+## Session Management
+
+### Session Creation
+
+Sessions are created automatically on first message:
+
+```javascript
+// First message in new chat
+POST /api/user/ai-chat
+{ content: "Hello", sessionId: undefined }
+
+Response:
+{
+  response: "Hi! How can I help?",
+  activeSessionId: "newly-generated-id"
+}
+
+// Store session ID for subsequent messages
+setSessionId(data.activeSessionId)
+```
+
+### Session Persistence
+
+All messages in a session are saved to the database:
+
+- Reload page → Conversations persist
+- Switch devices → Access from chat history
+- Close browser → Resume later
+
+### Loading Previous Sessions
+
+Click any chat in history to load it:
+
+```javascript
+const fetchConversation = async (sessionId) => {
+  GET /api/user/chat/{sessionId}
+  
+  Response:
+  {
+    messages: [
+      { role: 'user', content: '...' },
+      { role: 'assistant', content: '...' }
+    ]
+  }
+  
+  setMessages(data.messages)
+  setSessionId(sessionId)
+}
+```
+
+## Mobile Experience
+
+### Mobile Toolbar
+
+Replaces desktop sidebar with compact controls:
+
+```jsx
+<div className="md:hidden px-4 py-3 border-b flex justify-between">
+  <button onClick={() => setShowMobileHistory(true)}>
+    <MenuIcon /> History
+  </button>
+  <button onClick={startNewChat}>
+    + New Chat
+  </button>
+</div>
+```
+
+### Touch Optimizations
+
+- **Larger touch targets** - Buttons 44px minimum
+- **Swipe to dismiss** - Drawer closes on swipe left
+- **Keyboard handling** - Input doesn't hide behind virtual keyboard
+- **Scroll behavior** - Auto-scroll accounts for keyboard height
+
+## Performance Features
+
+<AccordionGroup>
+  <Accordion title="Auto-scroll">
+    Messages scroll into view automatically:
+    
+    ```javascript
+    useEffect(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }, [messages])
+    ```
+  </Accordion>
+  
+  <Accordion title="Auto-expanding Textarea">
+    Input grows with content up to 120px:
+    
+    ```javascript
+    useEffect(() => {
+      const textarea = textareaRef.current
+      if (!textarea) return
+      textarea.style.height = 'auto'
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px'
+    }, [input])
+    ```
+  </Accordion>
+  
+  <Accordion title="Optimistic Updates">
+    User messages appear immediately while API call processes in background.
+  </Accordion>
+  
+  <Accordion title="Lazy History Loading">
+    Chat history only loads previous chats on mount, not individual messages until selected.
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Tip>
+**Be specific in your questions.** Instead of "Explain React," ask "What are React hooks and when should I use them?" Specific questions get better answers.
+</Tip>
+
+<Tip>
+**Paste code when debugging.** The AI can analyze actual code better than descriptions. Use code blocks for formatting:
+\`\`\`language
+your code here
+\`\`\`
+</Tip>
+
+<Tip>
+**Follow up for clarification.** Don't hesitate to ask "Can you explain that differently?" or "What does [term] mean?" The AI maintains conversation context.
+</Tip>
+
+## Privacy & Security
+
+<Info>
+All chat conversations are private and only visible to you. SkillRise AI does not share your conversations with other users or use them for marketing purposes.
+</Info>
+
+Chat data storage:
+- Messages stored in your user account
+- Session IDs link conversations
+- No conversation history shared between users
+- Delete functionality permanently removes messages
+
+## Related Features
+
+- [Learning Experience](/students/learning-experience) - Main video player
+- [Progress Tracking](/students/progress-tracking) - View your courses
+- [Roadmap Generator](/students/roadmap) - AI-powered learning paths

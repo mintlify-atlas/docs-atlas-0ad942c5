@@ -1,0 +1,130 @@
+---
+title: "Get Enrolled Courses"
+api: "GET /api/user/enrolled-courses"
+description: "Retrieve list of courses the authenticated user is enrolled in with course details and user ratings"
+---
+
+## Authentication
+
+This endpoint requires authentication via Clerk. The `userId` is automatically extracted from the authentication token.
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates whether the request was successful
+</ResponseField>
+
+<ResponseField name="enrolledCourses" type="array">
+  Array of enrolled course objects
+  
+  <Expandable title="course properties">
+    <ResponseField name="_id" type="string">
+      Course unique identifier
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Course title
+    </ResponseField>
+    
+    <ResponseField name="thumbnail" type="string">
+      URL to course thumbnail image
+    </ResponseField>
+    
+    <ResponseField name="price" type="number">
+      Course price
+    </ResponseField>
+    
+    <ResponseField name="educator" type="object">
+      Course educator information (populated from educatorId)
+    </ResponseField>
+    
+    <ResponseField name="totalLectures" type="number">
+      Total number of lectures in the course
+    </ResponseField>
+    
+    <ResponseField name="totalDurationMinutes" type="number">
+      Total duration of the course in minutes
+    </ResponseField>
+    
+    <ResponseField name="userRating" type="number | null">
+      User's rating for this course (1-5) or null if not rated
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message if success is false
+</ResponseField>
+
+## Response Examples
+
+<ResponseExample>
+```json Success Response
+{
+  "success": true,
+  "enrolledCourses": [
+    {
+      "_id": "60d5ec49f1b2c72b8c8e4f1a",
+      "title": "Complete Web Development Bootcamp",
+      "thumbnail": "https://res.cloudinary.com/skillrise/image/upload/v1234567890/courses/web-dev.jpg",
+      "price": 49.99,
+      "educator": {
+        "_id": "educator_123abc",
+        "name": "Jane Smith",
+        "imageUrl": "https://..."
+      },
+      "totalLectures": 120,
+      "totalDurationMinutes": 1800,
+      "userRating": 5
+    },
+    {
+      "_id": "60d5ec49f1b2c72b8c8e4f1b",
+      "title": "Python for Data Science",
+      "thumbnail": "https://res.cloudinary.com/skillrise/image/upload/v1234567890/courses/python-ds.jpg",
+      "price": 39.99,
+      "educator": {
+        "_id": "educator_456def",
+        "name": "Bob Johnson",
+        "imageUrl": "https://..."
+      },
+      "totalLectures": 80,
+      "totalDurationMinutes": 1200,
+      "userRating": null
+    }
+  ]
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json User Not Found
+{
+  "success": false,
+  "message": "User not found"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error Response
+{
+  "success": false,
+  "message": "An unexpected error occurred"
+}
+```
+</ResponseExample>
+
+## Error Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Success |
+| 401 | Unauthorized - Invalid or missing authentication token |
+| 404 | User not found |
+| 500 | Internal server error |
+
+## Notes
+
+- The `enrolledStudents` field is excluded from course data in the response
+- User ratings are retrieved from the `courseRatings` array within each course
+- Courses are populated with full course details using MongoDB populate

@@ -1,0 +1,339 @@
+---
+title: "Razorpay Webhook"
+description: "Handle payment events from Razorpay payment gateway"
+api: "POST /razorpay"
+---
+
+## Overview
+
+This webhook endpoint receives payment events from Razorpay. It serves as a reliable fallback mechanism to complete course enrollments even if the frontend verification fails due to network issues or browser closures.
+
+<Info>
+  This endpoint ensures that successful payments always result in course enrollment, regardless of client-side failures.
+</Info>
+
+## Authentication
+
+### Webhook Signature Verification
+
+Razorpay uses HMAC SHA-256 signatures to verify webhook authenticity. The signature is computed over the raw request body bytes.
+
+**Required Header:**
+
+- `x-razorpay-signature`: HMAC SHA-256 signature of the raw request body
+
+**Verification Process:**
+
+```javascript
+const signature = req.headers['x-razorpay-signature']
+const rawBody = req.body // Must be raw Buffer, not parsed JSON
+
+const expectedSignature = crypto
+  .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
+  .update(rawBody)
+  .digest('hex')
+
+if (!crypto.timingSafeEqual(
+  Buffer.from(expectedSignature), 
+  Buffer.from(signature)
+)) {
+  throw new Error('Invalid signature')
+}
+```
+
+<Warning>
+  The request body MUST be kept as a raw Buffer for signature verification. Parsing to JSON before verification will cause signature mismatch.
+</Warning>
+
+### Security Implementation Details
+
+1. **Raw Body Requirement**: The endpoint uses `express.raw()` middleware to preserve the exact bytes sent by Razorpay
+2. **Timing-Safe Comparison**: Uses `crypto.timingSafeEqual()` to prevent timing attacks
+3. **Secret Storage**: Webhook secret is stored in `RAZORPAY_WEBHOOK_SECRET` environment variable
+
+## Event Types
+
+### payment.captured
+
+Fired when a payment is successfully captured by Razorpay.
+
+**Action:** Completes the purchase and enrolls the user in the course.
+
+**Payload Example:**
+
+```json
+{
+  "event": "payment.captured",
+  "payload": {
+    "payment": {
+      "entity": {
+        "id": "pay_abc123xyz",
+        "amount": 49900,
+        "currency": "INR",
+        "status": "captured",
+        "order_id": "order_xyz789",
+        "method": "card",
+        "notes": {
+          "purchaseId": "65f1a2b3c4d5e6f7g8h9i0j1"
+        },
+        "created_at": 1678901234
+      }
+    }
+  }
+}
+```
+
+**Key Fields:**
+
+- `event`: Event type identifier
+- `payload.payment.entity.id`: Razorpay payment ID
+- `payload.payment.entity.notes.purchaseId`: Internal SkillRise purchase ID
+
+<Info>
+  The `purchaseId` is stored in Razorpay's `notes` field when creating the order. This links Razorpay payments to internal purchase records.
+</Info>
+
+## Request Format
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `x-razorpay-signature` | string | Yes | HMAC SHA-256 signature of raw body |
+| `Content-Type` | string | Yes | Must be `application/json` |
+
+### Body
+
+```json
+{
+  "event": "payment.captured",
+  "payload": {
+    "payment": {
+      "entity": {
+        "id": "string",
+        "amount": 0,
+        "currency": "string",
+        "status": "captured",
+        "order_id": "string",
+        "method": "string",
+        "notes": {
+          "purchaseId": "string"
+        },
+        "created_at": 0
+      }
+    }
+  }
+}
+```
+
+## Response Format
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "received": true
+}
+```
+
+Returned for all successfully processed webhooks, regardless of whether the payment was handled.
+
+### Error Response
+
+**Status Code:** `400 Bad Request`
+
+```json
+{
+  "error": "Invalid Razorpay webhook signature"
+}
+```
+
+Returned when signature verification fails.
+
+## Processing Logic
+
+### Payment Completion Flow
+
+1. **Signature Verification**: Verify the webhook is from Razorpay
+2. **Parse Event**: Convert raw body to JSON after verification
+3. **Check Event Type**: Process only `payment.captured` events
+4. **Extract IDs**: Get `purchaseId` from notes and `paymentId` from entity
+5. **Complete Purchase**: Call `completePurchase(purchaseId, paymentId)` service
+6. **Acknowledge**: Return success response
+
+### Idempotency
+
+The `completePurchase` service handles duplicate webhook deliveries:
+
+- If the purchase is already completed, the operation is idempotent
+- Razorpay may retry webhook delivery, so duplicate events are handled gracefully
+
+### Event Filtering
+
+- Only `payment.captured` events trigger purchase completion
+- Other event types are acknowledged but not processed
+- Missing `purchaseId` or `paymentId` is silently ignored
+
+## Error Handling
+
+### Signature Validation Errors
+
+**Causes:**
+- Missing `x-razorpay-signature` header
+- Signature mismatch (tampered payload or wrong secret)
+
+**Response:** `400 Bad Request` with error message
+
+**Razorpay Behavior:** Will retry webhook delivery with exponential backoff
+
+### Missing Data
+
+**Causes:**
+- `purchaseId` not present in payment notes
+- `paymentId` missing from payment entity
+
+**Response:** `200 OK` with `{"received": true}`
+
+**Behavior:** Event is acknowledged to prevent retries, but no action is taken
+
+### Database Errors
+
+If `completePurchase()` throws an error:
+
+- Error propagates and causes webhook to fail
+- Razorpay will retry the webhook
+- Purchase completion will be attempted again
+
+## Security Best Practices
+
+1. **Raw Body Preservation**: Never parse the request body before signature verification
+2. **Timing-Safe Comparison**: Use `crypto.timingSafeEqual()` to prevent timing attacks
+3. **Secret Rotation**: Periodically rotate `RAZORPAY_WEBHOOK_SECRET`
+4. **HTTPS Only**: Configure Razorpay to only send webhooks to HTTPS endpoints
+5. **IP Whitelisting**: Consider restricting access to Razorpay's webhook IP addresses
+
+## Middleware Requirements
+
+This endpoint requires special Express middleware configuration:
+
+```javascript
+// Apply raw body parser for Razorpay webhook route
+app.post('/razorpay', 
+  express.raw({ type: 'application/json' }),
+  razorpayWebhooks
+)
+
+// Use JSON parser for other routes
+app.use(express.json())
+```
+
+<Warning>
+  If `express.json()` middleware runs before this route, signature verification will fail. Always apply `express.raw()` specifically to this route.
+</Warning>
+
+## Configuration
+
+### Razorpay Dashboard Setup
+
+1. Log into your [Razorpay Dashboard](https://dashboard.razorpay.com/)
+2. Navigate to **Settings** > **Webhooks**
+3. Click **Create New Webhook**
+4. Enter your endpoint URL: `https://yourdomain.com/razorpay`
+5. Select events to subscribe to:
+   - `payment.captured`
+6. Set a strong secret and copy it
+7. Save the webhook configuration
+
+### Environment Variables
+
+```bash
+RAZORPAY_WEBHOOK_SECRET=your_webhook_secret_here
+```
+
+<Info>
+  Keep this secret secure and never commit it to version control. Use environment-specific secrets for development, staging, and production.
+</Info>
+
+## Fallback Architecture
+
+This webhook serves as a critical fallback in the payment flow:
+
+```
+┌─────────────┐
+│   User      │
+│   Pays      │
+└──────┬──────┘
+       │
+       v
+┌─────────────────┐
+│   Razorpay      │
+│   Processes     │
+└────┬──────┬─────┘
+     │      │
+     │      └──────────────────┐
+     v                         v
+┌─────────────┐      ┌──────────────────┐
+│  Frontend   │      │  Webhook (This)  │
+│  Verify     │      │  Fallback        │
+└──────┬──────┘      └────────┬─────────┘
+       │                      │
+       v                      v
+   ┌──────────────────────────────┐
+   │   completePurchase()         │
+   │   (Idempotent Service)       │
+   └──────────────────────────────┘
+```
+
+**Benefits:**
+
+- **Reliability**: Enrollment completes even if user closes browser
+- **Network Resilience**: Works despite frontend connectivity issues
+- **Idempotency**: Handles both frontend and webhook completion safely
+
+## Implementation Reference
+
+**Location:** `server/controllers/webhooks.js:64`
+
+```javascript
+export const razorpayWebhooks = async (req, res) => {
+  const signature = req.headers['x-razorpay-signature']
+  const rawBody = req.body // Raw Buffer, not parsed JSON
+  
+  // Verify HMAC signature
+  const expectedSignature = crypto
+    .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
+    .update(rawBody)
+    .digest('hex')
+  
+  if (!signature || !crypto.timingSafeEqual(
+    Buffer.from(expectedSignature),
+    Buffer.from(signature)
+  )) {
+    return res.status(400).json({ 
+      error: 'Invalid Razorpay webhook signature' 
+    })
+  }
+  
+  // Parse after verification
+  const event = JSON.parse(rawBody.toString())
+  
+  if (event.event === 'payment.captured') {
+    const payment = event.payload?.payment?.entity
+    const purchaseId = payment?.notes?.purchaseId
+    const paymentId = payment?.id
+    
+    if (purchaseId && paymentId) {
+      await completePurchase(purchaseId, paymentId)
+    }
+  }
+  
+  res.json({ received: true })
+}
+```
+
+## Related Services
+
+- **completePurchase**: `server/services/payments/order.service.js` - Handles purchase completion and enrollment
+- **Payment Verification**: See frontend payment verification flow for the primary completion path

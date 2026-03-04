@@ -1,0 +1,210 @@
+---
+title: "Educator Application"
+description: "Submit and check educator applications"
+---
+
+## Submit Educator Application
+
+<api-endpoint method="POST" path="/api/educator/apply" />
+
+Submit an application to become an educator on the platform. If a previous application was rejected, this endpoint allows resubmission with updated information.
+
+### Authentication
+
+<api-auth>
+  <api-auth-item type="bearer" description="Clerk authentication token required" />
+</api-auth>
+
+### Request Body
+
+<api-request>
+  <api-request-item name="professionalTitle" type="string" required>
+    Professional title or designation (e.g., "Senior Software Engineer", "Data Science Instructor")
+  </api-request-item>
+  <api-request-item name="bio" type="string" required>
+    Detailed biography describing experience and background
+  </api-request-item>
+  <api-request-item name="expertise" type="array" required>
+    Array of expertise areas or skills (must contain at least one item)
+  </api-request-item>
+  <api-request-item name="linkedinUrl" type="string">
+    LinkedIn profile URL (optional)
+  </api-request-item>
+</api-request>
+
+### Request Example
+
+```json
+{
+  "professionalTitle": "Senior Full-Stack Developer",
+  "bio": "Experienced software engineer with 10+ years in web development, specializing in React, Node.js, and cloud architecture. Passionate about teaching and mentoring developers.",
+  "expertise": ["React", "Node.js", "TypeScript", "AWS", "System Design"],
+  "linkedinUrl": "https://linkedin.com/in/johndoe"
+}
+```
+
+### Response
+
+<api-response status="200">
+  <api-response-item name="success" type="boolean">
+    Indicates if the application was submitted successfully
+  </api-response-item>
+  <api-response-item name="message" type="string">
+    Status message describing the result
+  </api-response-item>
+</api-response>
+
+### Response Examples
+
+<CodeGroup>
+
+```json Success
+{
+  "success": true,
+  "message": "Application submitted successfully. We will review it shortly."
+}
+```
+
+```json Resubmission
+{
+  "success": true,
+  "message": "Application resubmitted successfully."
+}
+```
+
+```json Pending Application
+{
+  "success": false,
+  "message": "You already have a pending application."
+}
+```
+
+```json Already Approved
+{
+  "success": false,
+  "message": "Your application has already been approved."
+}
+```
+
+```json Validation Error
+{
+  "success": false,
+  "message": "Please fill in all required fields."
+}
+```
+
+</CodeGroup>
+
+### Application Status Flow
+
+1. **First-time application**: Creates a new application with `pending` status
+2. **Pending application exists**: Returns error, cannot submit duplicate
+3. **Approved application exists**: Returns error, already an educator
+4. **Rejected application exists**: Updates the existing application and resets status to `pending`
+
+---
+
+## Get Application Status
+
+<api-endpoint method="GET" path="/api/educator/application-status" />
+
+Retrieve the current user's educator application status and details.
+
+### Authentication
+
+<api-auth>
+  <api-auth-item type="bearer" description="Clerk authentication token required" />
+</api-auth>
+
+### Response
+
+<api-response status="200">
+  <api-response-item name="success" type="boolean">
+    Indicates if the request was successful
+  </api-response-item>
+  <api-response-item name="application" type="object | null">
+    Application details or null if no application exists
+  </api-response-item>
+  <api-response-item name="application.status" type="string">
+    Application status: `pending`, `approved`, or `rejected`
+  </api-response-item>
+  <api-response-item name="application.professionalTitle" type="string">
+    Professional title from the application
+  </api-response-item>
+  <api-response-item name="application.bio" type="string">
+    Biography from the application
+  </api-response-item>
+  <api-response-item name="application.expertise" type="array">
+    Array of expertise areas
+  </api-response-item>
+  <api-response-item name="application.linkedinUrl" type="string">
+    LinkedIn profile URL
+  </api-response-item>
+  <api-response-item name="application.rejectionReason" type="string">
+    Reason for rejection (only present if status is `rejected`)
+  </api-response-item>
+</api-response>
+
+### Response Examples
+
+<CodeGroup>
+
+```json Pending Application
+{
+  "success": true,
+  "application": {
+    "status": "pending",
+    "professionalTitle": "Senior Full-Stack Developer",
+    "bio": "Experienced software engineer with 10+ years...",
+    "expertise": ["React", "Node.js", "TypeScript"],
+    "linkedinUrl": "https://linkedin.com/in/johndoe",
+    "rejectionReason": ""
+  }
+}
+```
+
+```json Approved Application
+{
+  "success": true,
+  "application": {
+    "status": "approved",
+    "professionalTitle": "Senior Full-Stack Developer",
+    "bio": "Experienced software engineer with 10+ years...",
+    "expertise": ["React", "Node.js", "TypeScript"],
+    "linkedinUrl": "https://linkedin.com/in/johndoe",
+    "rejectionReason": ""
+  }
+}
+```
+
+```json Rejected Application
+{
+  "success": true,
+  "application": {
+    "status": "rejected",
+    "professionalTitle": "Senior Full-Stack Developer",
+    "bio": "Experienced software engineer with 10+ years...",
+    "expertise": ["React", "Node.js", "TypeScript"],
+    "linkedinUrl": "https://linkedin.com/in/johndoe",
+    "rejectionReason": "Please provide more details about your teaching experience."
+  }
+}
+```
+
+```json No Application
+{
+  "success": true,
+  "application": null
+}
+```
+
+</CodeGroup>
+
+### Error Response
+
+```json
+{
+  "success": false,
+  "message": "An unexpected error occurred"
+}
+```

@@ -1,0 +1,489 @@
+---
+title: 'Community Posts'
+description: 'Create, retrieve, and manage community discussion posts'
+---
+
+## Get Posts
+
+<api method="GET" endpoint="/api/community/posts" description="Retrieve community posts with filtering and pagination" />
+
+### Authentication
+
+Authentication is optional. If authenticated, the response includes upvote status and author flags.
+
+### Query Parameters
+
+<ParamField query="groupId" type="string">
+  Filter posts by specific group ID
+</ParamField>
+
+<ParamField query="tab" type="string">
+  Filter posts by tab:
+  - `"all"` (default) - All posts
+  - `"trending"` - Posts sorted by upvotes
+  - `"myGroups"` - Posts from groups the user is a member of (requires authentication)
+</ParamField>
+
+<ParamField query="page" type="number">
+  Page number for pagination (default: 1, 15 posts per page)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the request was successful
+</ResponseField>
+
+<ResponseField name="posts" type="array">
+  Array of post objects
+  
+  <Expandable title="post object">
+    <ResponseField name="_id" type="string">
+      Unique identifier for the post
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Post title (max 200 characters)
+    </ResponseField>
+    
+    <ResponseField name="content" type="string">
+      Post content (max 5000 characters)
+    </ResponseField>
+    
+    <ResponseField name="authorName" type="string">
+      Display name of the author
+    </ResponseField>
+    
+    <ResponseField name="authorImage" type="string">
+      URL of the author's profile image
+    </ResponseField>
+    
+    <ResponseField name="isAuthor" type="boolean">
+      Whether the authenticated user is the author
+    </ResponseField>
+    
+    <ResponseField name="group" type="object">
+      Group information (if post belongs to a group)
+      
+      <Expandable title="group object">
+        <ResponseField name="_id" type="string">
+          Group ID
+        </ResponseField>
+        <ResponseField name="name" type="string">
+          Group name
+        </ResponseField>
+        <ResponseField name="slug" type="string">
+          Group slug
+        </ResponseField>
+        <ResponseField name="icon" type="string">
+          Group icon
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="tags" type="array">
+      Array of tag strings (max 5 tags)
+    </ResponseField>
+    
+    <ResponseField name="upvoteCount" type="number">
+      Number of upvotes
+    </ResponseField>
+    
+    <ResponseField name="isUpvoted" type="boolean">
+      Whether the authenticated user has upvoted this post
+    </ResponseField>
+    
+    <ResponseField name="replyCount" type="number">
+      Number of replies
+    </ResponseField>
+    
+    <ResponseField name="isResolved" type="boolean">
+      Whether the post has been marked as resolved by the author
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of creation
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="hasMore" type="boolean">
+  Whether there are more posts available
+</ResponseField>
+
+<ResponseField name="total" type="number">
+  Total number of posts matching the query
+</ResponseField>
+
+### Code Example
+
+<CodeGroup>
+
+```javascript JavaScript
+// Get trending posts
+const response = await fetch(
+  'https://api.skillrise.com/api/community/posts?tab=trending&page=1',
+  {
+    headers: {
+      'Authorization': 'Bearer YOUR_TOKEN' // Optional
+    }
+  }
+);
+
+const data = await response.json();
+console.log(data.posts);
+```
+
+```python Python
+import requests
+
+url = 'https://api.skillrise.com/api/community/posts'
+params = {'tab': 'trending', 'page': 1}
+headers = {'Authorization': 'Bearer YOUR_TOKEN'}  # Optional
+
+response = requests.get(url, params=params, headers=headers)
+data = response.json()
+print(data['posts'])
+```
+
+```bash cURL
+curl "https://api.skillrise.com/api/community/posts?tab=trending&page=1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+</CodeGroup>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "posts": [
+    {
+      "_id": "64a1b2c3d4e5f6789abcdef0",
+      "title": "How to optimize React renders?",
+      "content": "I'm working on a large React application and noticing performance issues...",
+      "authorName": "Jane Doe",
+      "authorImage": "https://example.com/avatar.jpg",
+      "isAuthor": false,
+      "group": {
+        "_id": "64a1b2c3d4e5f6789abcdef1",
+        "name": "React Enthusiasts",
+        "slug": "react-enthusiasts",
+        "icon": "⚛️"
+      },
+      "tags": ["react", "performance", "optimization"],
+      "upvoteCount": 24,
+      "isUpvoted": true,
+      "replyCount": 8,
+      "isResolved": false,
+      "createdAt": "2024-03-15T10:30:00.000Z"
+    }
+  ],
+  "hasMore": true,
+  "total": 156
+}
+```
+
+---
+
+## Create Post
+
+<api method="POST" endpoint="/api/community/posts" description="Create a new community post" />
+
+### Authentication
+
+This endpoint requires user authentication.
+
+```bash
+Authorization: Bearer <user_token>
+```
+
+### Request Body
+
+<ParamField body="title" type="string" required>
+  Post title (1-200 characters, will be trimmed)
+</ParamField>
+
+<ParamField body="content" type="string" required>
+  Post content (1-5000 characters, will be trimmed)
+</ParamField>
+
+<ParamField body="groupId" type="string">
+  Group ID to post in (optional, null for general posts)
+</ParamField>
+
+<ParamField body="tags" type="array">
+  Array of tag strings or comma-separated string (max 5 tags)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the post was created successfully
+</ResponseField>
+
+<ResponseField name="post" type="object">
+  The newly created post object (same structure as Get Posts response)
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message if success is false
+</ResponseField>
+
+### Code Example
+
+<CodeGroup>
+
+```javascript JavaScript
+const response = await fetch('https://api.skillrise.com/api/community/posts', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_TOKEN'
+  },
+  body: JSON.stringify({
+    title: 'Best practices for async/await in JavaScript',
+    content: 'I\'ve been learning about async/await and wanted to share some patterns I\'ve found helpful...',
+    groupId: '64a1b2c3d4e5f6789abcdef1',
+    tags: ['javascript', 'async', 'best-practices']
+  })
+});
+
+const data = await response.json();
+console.log(data.post);
+```
+
+```python Python
+import requests
+
+url = 'https://api.skillrise.com/api/community/posts'
+headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_TOKEN'
+}
+payload = {
+    'title': 'Best practices for async/await in JavaScript',
+    'content': 'I\'ve been learning about async/await...',
+    'groupId': '64a1b2c3d4e5f6789abcdef1',
+    'tags': ['javascript', 'async', 'best-practices']
+}
+
+response = requests.post(url, json=payload, headers=headers)
+data = response.json()
+print(data['post'])
+```
+
+```bash cURL
+curl -X POST https://api.skillrise.com/api/community/posts \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "title": "Best practices for async/await in JavaScript",
+    "content": "I have been learning about async/await...",
+    "groupId": "64a1b2c3d4e5f6789abcdef1",
+    "tags": ["javascript", "async", "best-practices"]
+  }'
+```
+
+</CodeGroup>
+
+---
+
+## Get Single Post
+
+<api method="GET" endpoint="/api/community/posts/:postId" description="Retrieve a single post with all replies" />
+
+### Path Parameters
+
+<ParamField path="postId" type="string" required>
+  The unique identifier of the post
+</ParamField>
+
+### Response
+
+Includes the full post object with a `replies` array containing all replies. Accepted answers appear first, followed by other replies sorted by creation date.
+
+<ResponseField name="post" type="object">
+  <Expandable title="reply object (within post.replies)">
+    <ResponseField name="_id" type="string">
+      Unique identifier for the reply
+    </ResponseField>
+    
+    <ResponseField name="content" type="string">
+      Reply content (max 3000 characters)
+    </ResponseField>
+    
+    <ResponseField name="authorName" type="string">
+      Display name of the reply author
+    </ResponseField>
+    
+    <ResponseField name="authorImage" type="string">
+      URL of the author's profile image
+    </ResponseField>
+    
+    <ResponseField name="isAuthor" type="boolean">
+      Whether the authenticated user is the author
+    </ResponseField>
+    
+    <ResponseField name="upvoteCount" type="number">
+      Number of upvotes
+    </ResponseField>
+    
+    <ResponseField name="isUpvoted" type="boolean">
+      Whether the authenticated user has upvoted this reply
+    </ResponseField>
+    
+    <ResponseField name="isAcceptedAnswer" type="boolean">
+      Whether this reply is marked as the accepted answer
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of creation
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## Toggle Post Upvote
+
+<api method="POST" endpoint="/api/community/posts/:postId/upvote" description="Upvote or remove upvote from a post" />
+
+### Authentication
+
+This endpoint requires user authentication.
+
+### Path Parameters
+
+<ParamField path="postId" type="string" required>
+  The unique identifier of the post
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the operation was successful
+</ResponseField>
+
+<ResponseField name="upvoteCount" type="number">
+  Updated upvote count
+</ResponseField>
+
+<ResponseField name="isUpvoted" type="boolean">
+  New upvote status (true if upvoted, false if removed)
+</ResponseField>
+
+### Code Example
+
+```javascript
+const postId = '64a1b2c3d4e5f6789abcdef0';
+
+const response = await fetch(
+  `https://api.skillrise.com/api/community/posts/${postId}/upvote`,
+  {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_TOKEN'
+    }
+  }
+);
+
+const data = await response.json();
+console.log(`Upvotes: ${data.upvoteCount}`);
+```
+
+---
+
+## Toggle Post Resolved
+
+<api method="PATCH" endpoint="/api/community/posts/:postId/resolve" description="Mark post as resolved or unresolved (author only)" />
+
+### Authentication
+
+This endpoint requires user authentication. Only the post author can resolve/unresolve.
+
+### Path Parameters
+
+<ParamField path="postId" type="string" required>
+  The unique identifier of the post
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the operation was successful
+</ResponseField>
+
+<ResponseField name="isResolved" type="boolean">
+  New resolved status
+</ResponseField>
+
+### Code Example
+
+```javascript
+const postId = '64a1b2c3d4e5f6789abcdef0';
+
+const response = await fetch(
+  `https://api.skillrise.com/api/community/posts/${postId}/resolve`,
+  {
+    method: 'PATCH',
+    headers: {
+      'Authorization': 'Bearer YOUR_TOKEN'
+    }
+  }
+);
+
+const data = await response.json();
+```
+
+---
+
+## Delete Post
+
+<api method="DELETE" endpoint="/api/community/posts/:postId" description="Delete a post (author only)" />
+
+### Authentication
+
+This endpoint requires user authentication. Only the post author can delete their post.
+
+### Path Parameters
+
+<ParamField path="postId" type="string" required>
+  The unique identifier of the post
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the post was deleted successfully
+</ResponseField>
+
+### Code Example
+
+```javascript
+const postId = '64a1b2c3d4e5f6789abcdef0';
+
+const response = await fetch(
+  `https://api.skillrise.com/api/community/posts/${postId}`,
+  {
+    method: 'DELETE',
+    headers: {
+      'Authorization': 'Bearer YOUR_TOKEN'
+    }
+  }
+);
+
+const data = await response.json();
+```
+
+## Notes
+
+- Posts can belong to a specific group or be general (no group)
+- Tags can be provided as an array or comma-separated string
+- The "trending" tab sorts posts by upvote count (descending), then by creation date
+- The "myGroups" tab filters posts from groups the user has joined
+- Pagination returns 15 posts per page
+- Deleting a post also deletes all associated replies
+- Only post authors can resolve/unresolve or delete their posts
+- Upvoting is a toggle action - calling it again removes the upvote

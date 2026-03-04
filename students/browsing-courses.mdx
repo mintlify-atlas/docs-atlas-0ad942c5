@@ -1,0 +1,290 @@
+---
+title: 'Browsing Courses'
+description: 'Learn how to discover and explore courses using the catalog, search, and filtering features'
+icon: 'magnifying-glass'
+---
+
+## Overview
+
+SkillRise provides a powerful course discovery system that helps students find the perfect courses to advance their skills. The course catalog features advanced search, sorting, and filtering capabilities to quickly narrow down thousands of courses.
+
+## Course Catalog Interface
+
+The course catalog (`/course-list`) displays all available courses in a responsive grid layout. Each course is presented as a card showing:
+
+- **Thumbnail image** - Visual preview of the course content
+- **Course title** - Clear, descriptive course name
+- **Educator name** - The instructor who created the course
+- **Star rating** - Average rating from 1-5 stars with visual stars
+- **Total ratings** - Number of students who rated the course
+- **Price** - Course price in INR with two decimal places
+
+### Page Layout
+
+The catalog page includes:
+
+1. **Breadcrumb navigation** - Home / Explore path
+2. **Page header** - Title and descriptive subtitle
+3. **Search and sort controls** - Inline search bar with sort dropdown
+4. **Popular topic pills** - Quick-access category filters
+5. **Results summary** - Count of courses matching current filters
+6. **Course grid** - Responsive grid (1-4 columns based on screen size)
+7. **Footer** - Platform information and links
+
+<img src="/images/student/course-catalog.png" alt="Course catalog showing grid of courses with search and filters" />
+
+## Search Functionality
+
+### Search Bar Component
+
+The search bar is prominently displayed at the top of the catalog with:
+
+- **Search icon** - Visual indicator on the left
+- **Input field** - Full-width text input for course queries
+- **Search button** - Primary action button to execute search
+
+Search behavior:
+
+```jsx
+// User types query and submits
+navigates to: /course-list/{searchQuery}
+
+// Example:
+Search for "Python" → /course-list/Python
+```
+
+### Search Algorithm
+
+The search performs case-insensitive matching against course titles:
+
+```javascript
+courses.filter((course) => 
+  course.courseTitle.toLowerCase().includes(input.toLowerCase())
+)
+```
+
+### Active Search State
+
+When a search is active:
+
+- Result count shows "X courses matching \"query\""
+- Clear search button appears with X icon
+- Active query highlighted in URL and UI
+- Clicking clear returns to full catalog
+
+<Note>
+Search results update instantly as users navigate. The search query persists in the URL, making it easy to share specific search results with others.
+</Note>
+
+## Sorting Options
+
+The sort dropdown provides four ordering options:
+
+<Tabs>
+  <Tab title="Default">
+    Courses appear in their original database order, typically newest first.
+  </Tab>
+  <Tab title="Most Popular">
+    Sorts by total number of ratings (descending):
+    ```javascript
+    courses.sort((a, b) => 
+      (b.courseRatings?.length || 0) - (a.courseRatings?.length || 0)
+    )
+    ```
+    Shows courses with the most student engagement first.
+  </Tab>
+  <Tab title="Price: Low → High">
+    Sorts by course price in ascending order:
+    ```javascript
+    courses.sort((a, b) => 
+      (Number(a.coursePrice) || 0) - (Number(b.coursePrice) || 0)
+    )
+    ```
+    Ideal for budget-conscious students.
+  </Tab>
+  <Tab title="Price: High → Low">
+    Sorts by course price in descending order:
+    ```javascript
+    courses.sort((a, b) => 
+      (Number(b.coursePrice) || 0) - (Number(a.coursePrice) || 0)
+    )
+    ```
+    Shows premium courses first.
+  </Tab>
+</Tabs>
+
+## Popular Topic Filters
+
+Quick-access category pills appear below the search bar:
+
+- **Web Dev**
+- **Data Science**
+- **Design**
+- **AI**
+- **Python**
+- **JavaScript**
+
+### Filter Behavior
+
+Clicking a topic pill:
+1. Navigates to `/course-list/{topic}`
+2. Applies search filter for that topic
+3. Highlights the active pill with teal background
+4. Shows matching course count
+
+```jsx
+// Active pill styling
+className="bg-teal-600 text-white border-teal-600"
+
+// Inactive pill styling  
+className="bg-white border-gray-200 text-gray-600 hover:border-teal-400"
+```
+
+<img src="/images/student/topic-filters.png" alt="Popular topic filter pills with Web Dev selected" />
+
+## Course Cards
+
+Each course is displayed as an interactive card with hover effects:
+
+### Visual Design
+
+- **16:9 aspect ratio thumbnail** - Maintains consistent sizing
+- **Rounded corners** - Modern 2xl border radius
+- **Hover lift effect** - Slight translate-y and shadow increase
+- **Gradient overlay on hover** - Subtle darkening effect
+
+### Information Displayed
+
+1. **Course Title** - Limited to 2 lines with ellipsis
+2. **Educator Name** - Single line with ellipsis
+3. **Rating Display** - Number + 5 star visualization
+4. **Price** - Large, bold INR amount
+5. **CTA Badge** - "View details" button
+
+### Interactive Behavior
+
+```jsx
+// Clicking card navigates to course details
+onClick={() => navigate('/course/' + courseId)}
+
+// Auto-scrolls to top of page
+scrollTo(0, 0)
+```
+
+## Empty States
+
+### No Results Found
+
+When a search returns zero courses:
+
+- **Large search icon** - Visual indicator (🔍 emoji)
+- **"No courses found" heading** - Clear status message
+- **Descriptive text** - Suggests trying different search terms
+- **"View all courses" button** - Easy path back to full catalog
+
+```jsx
+// Empty state message
+"We couldn't find any courses matching \"{query}\". Try a different search term."
+```
+
+### No Courses Available
+
+When the catalog is completely empty:
+
+```jsx
+"No courses are available right now. Check back soon."
+```
+
+<img src="/images/student/empty-search.png" alt="Empty state showing no courses found with helpful message" />
+
+## Responsive Design
+
+### Grid Breakpoints
+
+<CardGroup cols={4}>
+  <Card title="Mobile" icon="mobile">
+    1 column
+    
+    `grid-cols-1`
+  </Card>
+  <Card title="Tablet" icon="tablet">
+    2 columns
+    
+    `sm:grid-cols-2`
+  </Card>
+  <Card title="Desktop" icon="desktop">
+    3 columns
+    
+    `md:grid-cols-3`
+  </Card>
+  <Card title="Large" icon="tv">
+    4 columns
+    
+    `lg:grid-cols-4`
+  </Card>
+</CardGroup>
+
+### Mobile Optimizations
+
+- Search and sort stack vertically on small screens
+- Topic pills wrap to multiple rows
+- Course cards expand to full width
+- Touch targets sized appropriately (44px minimum)
+
+## Performance Features
+
+<AccordionGroup>
+  <Accordion title="Instant Filtering">
+    All filtering and sorting happens client-side using React state. Courses are filtered and sorted instantly without API calls, providing a snappy user experience.
+  </Accordion>
+  
+  <Accordion title="URL-based State">
+    Search queries are stored in the URL path (`/course-list/{query}`), enabling:
+    - Direct links to search results
+    - Browser back/forward navigation
+    - Sharable search URLs
+  </Accordion>
+  
+  <Accordion title="Optimized Rendering">
+    Course cards use React keys and memoization to prevent unnecessary re-renders when sorting or filtering changes.
+  </Accordion>
+</AccordionGroup>
+
+## User Flow Example
+
+<Steps>
+  <Step title="Land on Catalog">
+    Student navigates to `/course-list` from home page or navigation menu
+  </Step>
+  <Step title="Browse Initial Results">
+    Sees all available courses in default order with full metadata
+  </Step>
+  <Step title="Filter by Topic">
+    Clicks "Python" pill to see only Python-related courses
+  </Step>
+  <Step title="Sort by Price">
+    Changes sort to "Price: Low → High" to find affordable options
+  </Step>
+  <Step title="Search Within Results">
+    Types "beginner" to further narrow to beginner Python courses
+  </Step>
+  <Step title="Select Course">
+    Clicks course card to view detailed course information
+  </Step>
+</Steps>
+
+## Best Practices
+
+<Warning>
+Ensure all course thumbnails are optimized and use appropriate aspect ratios. Poor quality or incorrectly sized images degrade the browsing experience.
+</Warning>
+
+<Tip>
+Encourage educators to use descriptive, searchable course titles that include key topics and technologies. This improves search discoverability.
+</Tip>
+
+## Related Features
+
+- [Course Details](/students/enrolling-courses) - Next step after browsing
+- [My Courses](/students/progress-tracking) - View enrolled courses
+- [Search Bar Component](/components/student/searchbar) - Technical implementation

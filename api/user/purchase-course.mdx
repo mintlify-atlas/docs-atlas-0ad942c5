@@ -1,0 +1,122 @@
+---
+title: "Purchase Course"
+api: "POST /api/user/purchase"
+description: "Initiate a course purchase by creating a Razorpay payment order"
+---
+
+## Authentication
+
+This endpoint requires authentication via Clerk. The `userId` is automatically extracted from the authentication token.
+
+## Request Body
+
+<ParamField body="courseId" type="string" required>
+  The unique identifier of the course to purchase
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates whether the request was successful
+</ResponseField>
+
+<ResponseField name="purchaseId" type="string">
+  Unique identifier for the purchase record (used in payment verification)
+</ResponseField>
+
+<ResponseField name="orderId" type="string">
+  Razorpay order ID for the payment
+</ResponseField>
+
+<ResponseField name="keyId" type="string">
+  Razorpay key ID for client-side payment integration
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message if success is false
+</ResponseField>
+
+## Request Example
+
+<RequestExample>
+```json Request
+{
+  "courseId": "60d5ec49f1b2c72b8c8e4f1a"
+}
+```
+</RequestExample>
+
+## Response Examples
+
+<ResponseExample>
+```json Success Response
+{
+  "success": true,
+  "purchaseId": "65f1a2b3c4d5e6f7g8h9i0j1",
+  "orderId": "order_NXs8jKl9mP0qRs",
+  "keyId": "rzp_test_1DP5mmOlF5G5ag"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Invalid Request
+{
+  "success": false,
+  "message": "Invalid request data"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Data Not Found
+{
+  "success": false,
+  "message": "Data Not Found"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error Response
+{
+  "success": false,
+  "message": "An unexpected error occurred"
+}
+```
+</ResponseExample>
+
+## Error Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Success or data not found (check `success` field) |
+| 400 | Invalid request data - courseId is required |
+| 401 | Unauthorized - Invalid or missing authentication token |
+| 500 | Internal server error |
+
+## Purchase Flow
+
+1. **Create Purchase Record**: A purchase record is created with status `'created'` in the database
+2. **Calculate Amount**: Final amount is calculated after applying any discounts: `price - (discount * price / 100)`
+3. **Create Razorpay Order**: A Razorpay order is created with the purchase details
+4. **Return Order Details**: The client receives `purchaseId`, `orderId`, and `keyId` to initiate payment
+5. **Payment Verification**: After payment, use the `/api/user/verify-razorpay` endpoint to complete the purchase
+
+## Important Notes
+
+- The purchase record is created immediately with status `'created'`
+- If Razorpay order creation fails, the purchase record is automatically deleted to keep the database clean
+- The `purchaseId` must be passed to the payment verification endpoint after successful payment
+- The amount is calculated using the course's `coursePrice` and `discount` fields
+- Currency defaults to the `CURRENCY` environment variable or `'INR'`
+
+## Validation Schema
+
+The request body is validated using Zod:
+
+```javascript
+{
+  courseId: z.string().min(1)
+}
+```

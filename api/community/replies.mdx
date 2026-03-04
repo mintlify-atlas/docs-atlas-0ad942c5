@@ -1,0 +1,448 @@
+---
+title: 'Community Replies'
+description: 'Create and manage replies to community posts'
+---
+
+## Create Reply
+
+<api method="POST" endpoint="/api/community/posts/:postId/replies" description="Create a reply to a community post" />
+
+### Authentication
+
+This endpoint requires user authentication.
+
+```bash
+Authorization: Bearer <user_token>
+```
+
+### Path Parameters
+
+<ParamField path="postId" type="string" required>
+  The unique identifier of the post to reply to
+</ParamField>
+
+### Request Body
+
+<ParamField body="content" type="string" required>
+  Reply content (1-3000 characters, will be trimmed)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the reply was created successfully
+</ResponseField>
+
+<ResponseField name="reply" type="object">
+  The newly created reply object
+  
+  <Expandable title="reply object">
+    <ResponseField name="_id" type="string">
+      Unique identifier for the reply
+    </ResponseField>
+    
+    <ResponseField name="postId" type="string">
+      The ID of the parent post
+    </ResponseField>
+    
+    <ResponseField name="content" type="string">
+      Reply content
+    </ResponseField>
+    
+    <ResponseField name="authorName" type="string">
+      Display name of the reply author
+    </ResponseField>
+    
+    <ResponseField name="authorImage" type="string">
+      URL of the author's profile image
+    </ResponseField>
+    
+    <ResponseField name="isAuthor" type="boolean">
+      Always true for newly created reply
+    </ResponseField>
+    
+    <ResponseField name="upvoteCount" type="number">
+      Number of upvotes (0 for new reply)
+    </ResponseField>
+    
+    <ResponseField name="isUpvoted" type="boolean">
+      Whether the authenticated user has upvoted (false for new reply)
+    </ResponseField>
+    
+    <ResponseField name="isAcceptedAnswer" type="boolean">
+      Whether this reply is marked as the accepted answer
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of creation
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message if success is false
+</ResponseField>
+
+### Code Examples
+
+<CodeGroup>
+
+```javascript JavaScript
+const postId = '64a1b2c3d4e5f6789abcdef0';
+
+const response = await fetch(
+  `https://api.skillrise.com/api/community/posts/${postId}/replies`,
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer YOUR_TOKEN'
+    },
+    body: JSON.stringify({
+      content: 'Great question! Here are some tips for optimizing React renders...'
+    })
+  }
+);
+
+const data = await response.json();
+console.log(data.reply);
+```
+
+```python Python
+import requests
+
+post_id = '64a1b2c3d4e5f6789abcdef0'
+url = f'https://api.skillrise.com/api/community/posts/{post_id}/replies'
+headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_TOKEN'
+}
+payload = {
+    'content': 'Great question! Here are some tips for optimizing React renders...'
+}
+
+response = requests.post(url, json=payload, headers=headers)
+data = response.json()
+print(data['reply'])
+```
+
+```bash cURL
+curl -X POST https://api.skillrise.com/api/community/posts/64a1b2c3d4e5f6789abcdef0/replies \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "content": "Great question! Here are some tips for optimizing React renders..."
+  }'
+```
+
+</CodeGroup>
+
+### Response Example
+
+```json Success
+{
+  "success": true,
+  "reply": {
+    "_id": "64a1b2c3d4e5f6789abcdef5",
+    "postId": "64a1b2c3d4e5f6789abcdef0",
+    "content": "Great question! Here are some tips for optimizing React renders...",
+    "authorName": "John Smith",
+    "authorImage": "https://example.com/john-avatar.jpg",
+    "isAuthor": true,
+    "upvoteCount": 0,
+    "isUpvoted": false,
+    "isAcceptedAnswer": false,
+    "createdAt": "2024-03-15T14:25:00.000Z"
+  }
+}
+```
+
+```json Post Not Found
+{
+  "success": false,
+  "message": "Post not found"
+}
+```
+
+```json Missing Content
+{
+  "success": false,
+  "message": "Reply content is required"
+}
+```
+
+---
+
+## Toggle Reply Upvote
+
+<api method="POST" endpoint="/api/community/posts/:postId/replies/:replyId/upvote" description="Upvote or remove upvote from a reply" />
+
+### Authentication
+
+This endpoint requires user authentication.
+
+```bash
+Authorization: Bearer <user_token>
+```
+
+### Path Parameters
+
+<ParamField path="postId" type="string" required>
+  The unique identifier of the post
+</ParamField>
+
+<ParamField path="replyId" type="string" required>
+  The unique identifier of the reply
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the operation was successful
+</ResponseField>
+
+<ResponseField name="upvoteCount" type="number">
+  Updated upvote count
+</ResponseField>
+
+<ResponseField name="isUpvoted" type="boolean">
+  New upvote status (true if upvoted, false if removed)
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message if success is false
+</ResponseField>
+
+### Code Examples
+
+<CodeGroup>
+
+```javascript JavaScript
+const postId = '64a1b2c3d4e5f6789abcdef0';
+const replyId = '64a1b2c3d4e5f6789abcdef5';
+
+const response = await fetch(
+  `https://api.skillrise.com/api/community/posts/${postId}/replies/${replyId}/upvote`,
+  {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_TOKEN'
+    }
+  }
+);
+
+const data = await response.json();
+console.log(`Upvotes: ${data.upvoteCount}, Upvoted: ${data.isUpvoted}`);
+```
+
+```python Python
+import requests
+
+post_id = '64a1b2c3d4e5f6789abcdef0'
+reply_id = '64a1b2c3d4e5f6789abcdef5'
+url = f'https://api.skillrise.com/api/community/posts/{post_id}/replies/{reply_id}/upvote'
+headers = {'Authorization': 'Bearer YOUR_TOKEN'}
+
+response = requests.post(url, headers=headers)
+data = response.json()
+print(f"Upvotes: {data['upvoteCount']}, Upvoted: {data['isUpvoted']}")
+```
+
+```bash cURL
+curl -X POST https://api.skillrise.com/api/community/posts/64a1b2c3d4e5f6789abcdef0/replies/64a1b2c3d4e5f6789abcdef5/upvote \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+</CodeGroup>
+
+### Response Example
+
+```json Upvoted
+{
+  "success": true,
+  "upvoteCount": 5,
+  "isUpvoted": true
+}
+```
+
+```json Removed Upvote
+{
+  "success": true,
+  "upvoteCount": 4,
+  "isUpvoted": false
+}
+```
+
+```json Reply Not Found
+{
+  "success": false,
+  "message": "Reply not found"
+}
+```
+
+---
+
+## Accept Answer
+
+<api method="PATCH" endpoint="/api/community/posts/:postId/replies/:replyId/accept" description="Accept a reply as the answer to a post (post author only)" />
+
+### Authentication
+
+This endpoint requires user authentication. Only the post author can accept answers.
+
+```bash
+Authorization: Bearer <user_token>
+```
+
+### Path Parameters
+
+<ParamField path="postId" type="string" required>
+  The unique identifier of the post
+</ParamField>
+
+<ParamField path="replyId" type="string" required>
+  The unique identifier of the reply to accept
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the operation was successful
+</ResponseField>
+
+<ResponseField name="isAcceptedAnswer" type="boolean">
+  New acceptance status (true if accepted)
+</ResponseField>
+
+<ResponseField name="postResolved" type="boolean">
+  Whether the post is now marked as resolved
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message if success is false
+</ResponseField>
+
+### Code Examples
+
+<CodeGroup>
+
+```javascript JavaScript
+const postId = '64a1b2c3d4e5f6789abcdef0';
+const replyId = '64a1b2c3d4e5f6789abcdef5';
+
+const response = await fetch(
+  `https://api.skillrise.com/api/community/posts/${postId}/replies/${replyId}/accept`,
+  {
+    method: 'PATCH',
+    headers: {
+      'Authorization': 'Bearer YOUR_TOKEN'
+    }
+  }
+);
+
+const data = await response.json();
+console.log('Answer accepted:', data.isAcceptedAnswer);
+```
+
+```python Python
+import requests
+
+post_id = '64a1b2c3d4e5f6789abcdef0'
+reply_id = '64a1b2c3d4e5f6789abcdef5'
+url = f'https://api.skillrise.com/api/community/posts/{post_id}/replies/{reply_id}/accept'
+headers = {'Authorization': 'Bearer YOUR_TOKEN'}
+
+response = requests.patch(url, headers=headers)
+data = response.json()
+print(f"Answer accepted: {data['isAcceptedAnswer']}")
+```
+
+```bash cURL
+curl -X PATCH https://api.skillrise.com/api/community/posts/64a1b2c3d4e5f6789abcdef0/replies/64a1b2c3d4e5f6789abcdef5/accept \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+</CodeGroup>
+
+### Response Example
+
+```json Answer Accepted
+{
+  "success": true,
+  "isAcceptedAnswer": true,
+  "postResolved": true
+}
+```
+
+```json Not Post Author
+{
+  "success": false,
+  "message": "Only the post author can accept an answer"
+}
+```
+
+```json Reply Not Found
+{
+  "success": false,
+  "message": "Reply not found"
+}
+```
+
+## Behavior Notes
+
+### Reply Creation
+- Reply content is limited to 3000 characters and will be trimmed
+- Creating a reply increments the post's `replyCount`
+- The reply author's name and image are automatically fetched from the user profile
+
+### Upvoting Replies
+- Upvoting is a toggle action - calling the endpoint again removes the upvote
+- Users can upvote their own replies
+- The response includes the updated upvote count and the user's new upvote status
+
+### Accepting Answers
+- Only the post author can accept answers
+- Only one reply can be accepted at a time per post
+- Accepting a reply automatically marks the post as resolved
+- Calling the endpoint on an already-accepted reply unaccepts it (toggles)
+- When a reply is accepted, all other replies on that post are automatically unaccepted
+- Accepted answers appear first when retrieving replies (sorted by `isAcceptedAnswer: true` first)
+
+### Reply Sorting
+
+When fetching a post with replies (via `GET /api/community/posts/:postId`):
+1. Accepted answer appears first (if any)
+2. Other replies sorted by creation date (oldest first)
+
+### Permissions
+
+| Action | Requirement |
+|--------|-------------|
+| Create Reply | Authenticated user |
+| Upvote Reply | Authenticated user |
+| Accept Answer | Post author only |
+
+## Error Responses
+
+All endpoints return consistent error formats:
+
+```json Authentication Required
+{
+  "success": false,
+  "message": "Authentication required"
+}
+```
+
+```json Not Authorized
+{
+  "success": false,
+  "message": "Not authorized"
+}
+```
+
+```json Server Error
+{
+  "success": false,
+  "message": "An unexpected error occurred"
+}
+```

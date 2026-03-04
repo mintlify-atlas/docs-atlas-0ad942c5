@@ -1,0 +1,611 @@
+---
+title: 'Progress Tracking & Analytics'
+description: 'Monitor your learning progress, track time spent, view certificates, and analyze quiz performance'
+icon: 'chart-line'
+---
+
+## Overview
+
+The Analytics Dashboard (`/analytics`) provides comprehensive insights into your learning journey. Track course progress, monitor time spent across different pages, view quiz results, and access completion certificates—all in one centralized location.
+
+## Dashboard Overview
+
+The dashboard features a tabbed interface with three main sections:
+
+<img src="/images/student/analytics-dashboard.png" alt="Analytics dashboard showing activity, courses, and quizzes tabs" />
+
+<CardGroup cols={3}>
+  <Card title="Activity Tab" icon="clock">
+    Time tracking and usage analytics
+  </Card>
+  <Card title="My Courses Tab" icon="graduation-cap">
+    Enrolled courses with progress bars
+  </Card>
+  <Card title="Quizzes Tab" icon="clipboard-question">
+    Quiz history and performance
+  </Card>
+</CardGroup>
+
+## Activity Tab
+
+The Activity tab displays detailed time-tracking analytics:
+
+### Summary Cards
+
+Three key metrics displayed prominently:
+
+<Steps>
+  <Step title="Total Time">
+    **Aggregate time across all pages**
+    
+    ```javascript
+    formatDuration(totalDuration)
+    // Example: "2h 34m"
+    ```
+    
+    Shows lifetime platform engagement
+  </Step>
+  <Step title="Active Days">
+    **Number of days with activity in last 7 days**
+    
+    ```javascript
+    const activeDays = dailyStats.filter(d => d.duration > 0).length
+    // Range: 0-7
+    ```
+    
+    Measures learning consistency
+  </Step>
+  <Step title="Most Time Spent">
+    **Page with highest total duration**
+    
+    ```javascript
+    const topPage = pageStats[0]?.page || '—'
+    const topDuration = pageStats[0]?.totalDuration
+    ```
+    
+    Identifies primary learning focus
+  </Step>
+</Steps>
+
+<img src="/images/student/activity-summary-cards.png" alt="Three summary cards showing total time, active days, and most visited page" />
+
+### Time by Topic
+
+Horizontal bar chart showing duration per page/topic:
+
+```jsx
+{pageStats.map(({ page, totalDuration, visits }) => {
+  const percentage = (totalDuration / maxDuration) * 100
+  return (
+    <div>
+      <div className="flex justify-between">
+        <span>{getIcon(page)} {page}</span>
+        <span>{formatDuration(totalDuration)}</span>
+      </div>
+      <div className="progress-bar">
+        <div style={{ width: `${percentage}%` }} className={getColor(page)} />
+      </div>
+      <p className="text-xs">{visits} sessions</p>
+    </div>
+  )
+})}
+```
+
+**Page Icons & Colors:**
+
+<Tabs>
+  <Tab title="Player">
+    Icon: ▶️
+    
+    Color: `bg-teal-500`
+    
+    Tracks video watching time
+  </Tab>
+  <Tab title="AI Chat">
+    Icon: 🤖
+    
+    Color: `bg-indigo-500`
+    
+    Time spent with AI assistant
+  </Tab>
+  <Tab title="Quiz">
+    Icon: 🧠
+    
+    Color: `bg-amber-500`
+    
+    Quiz attempt duration
+  </Tab>
+  <Tab title="Explore">
+    Icon: 🔍
+    
+    Color: `bg-purple-500`
+    
+    Course browsing time
+  </Tab>
+  <Tab title="Roadmap">
+    Icon: 🗺️
+    
+    Color: `bg-blue-500`
+    
+    Learning path planning
+  </Tab>
+</Tabs>
+
+### Last 7 Days Chart
+
+Vertical bar chart showing daily activity:
+
+<img src="/images/student/daily-activity-chart.png" alt="Bar chart showing time spent each day over the last 7 days" />
+
+**Chart Features:**
+
+- **7 bars** - One per day (Mon-Sun)
+- **Height** - Proportional to time spent
+- **Color** - Today highlighted in teal, past days lighter
+- **Labels** - Day abbreviation below each bar
+- **Tooltips** - Hover shows exact time
+- **Weekly total** - Sum displayed below chart
+
+Implementation:
+
+```javascript
+const maxDailyDuration = Math.max(...dailyStats.map(d => d.duration), 1)
+
+dailyStats.map(({ date, duration }) => {
+  const heightPct = Math.max(
+    duration > 0 ? 6 : 0, // Minimum visible height
+    (duration / maxDailyDuration) * 100
+  )
+  const isToday = date === new Date().toISOString().split('T')[0]
+  
+  return (
+    <div className="bar" style={{ height: `${heightPct}%` }}>
+      <span className="duration">{formatDuration(duration)}</span>
+      <span className={isToday ? 'text-teal-600' : 'text-gray-400'}>
+        {new Date(date).toLocaleDateString('en-US', { weekday: 'short' })}
+      </span>
+    </div>
+  )
+})
+```
+
+### Course Breakdown
+
+Detailed per-course and per-chapter analytics:
+
+<img src="/images/student/course-breakdown.png" alt="Expandable course breakdown showing video watch time and quiz performance by chapter" />
+
+**Course-level Metrics:**
+- Course thumbnail (clickable → player)
+- Course title
+- Total watch time
+- Number of learning sessions
+- Total quiz time across all chapters
+
+**Chapter-level Metrics:**
+- Chapter title
+- Quiz duration for that chapter
+- Number of quiz attempts
+- Horizontal progress bar
+
+Structure:
+
+```jsx
+{courseBreakdown.map(course => (
+  <div>
+    <div className="course-header" onClick={() => navigate('/player/' + course.id)}>
+      <img src={course.thumbnail} />
+      <div>
+        <p className="font-semibold">{course.title}</p>
+        <div className="text-xs text-gray-500">
+          {course.learningDuration > 0 && (
+            <span>▶ {formatDuration(course.learningDuration)} watched · 
+                  {course.learningSessions} sessions</span>
+          )}
+          {course.totalQuizDuration > 0 && (
+            <span>🧠 {formatDuration(course.totalQuizDuration)} in quizzes</span>
+          )}
+        </div>
+      </div>
+    </div>
+    
+    {course.chapters.map(chapter => (
+      <div className="chapter-item">
+        <div className="flex justify-between">
+          <span className="text-xs">{chapter.title}</span>
+          <span className="text-xs font-medium">{formatDuration(chapter.quizDuration)}</span>
+        </div>
+        <div className="progress-bar h-1.5 bg-gray-100">
+          <div className="h-full bg-indigo-400" style={{ width: `${chapter.percentage}%` }} />
+        </div>
+        <p className="text-xs text-gray-400">
+          Quiz · {chapter.quizSessions} {chapter.quizSessions === 1 ? 'attempt' : 'attempts'}
+        </p>
+      </div>
+    ))}
+  </div>
+))}
+```
+
+### Empty State
+
+When no activity exists:
+
+```jsx
+<div className="bg-teal-50 border border-teal-100 rounded-2xl p-8 text-center">
+  <p className="text-teal-700 font-medium text-lg">Your analytics will appear here</p>
+  <p className="text-teal-600 text-sm">
+    Browse courses, watch lectures, and use SkillRise AI — your activity is tracked automatically.
+  </p>
+</div>
+```
+
+## My Courses Tab
+
+Displays all enrolled courses with detailed progress tracking:
+
+### Summary Cards
+
+<CardGroup cols={3}>
+  <Card title="Enrolled">
+    Total number of enrolled courses
+    
+    ```javascript
+    enrolledCourses.length
+    ```
+  </Card>
+  <Card title="In Progress">
+    Courses with partial completion
+    
+    ```javascript
+    progressArray.filter(p => 
+      p.lectureCompleted > 0 && 
+      p.lectureCompleted < p.totalLectures
+    ).length
+    ```
+  </Card>
+  <Card title="Completed">
+    Courses with 100% completion
+    
+    ```javascript
+    progressArray.filter(p => 
+      p.totalLectures > 0 && 
+      p.lectureCompleted === p.totalLectures
+    ).length
+    ```
+  </Card>
+</CardGroup>
+
+### Course Cards
+
+Each enrolled course displayed as a card:
+
+<img src="/images/student/course-progress-card.png" alt="Course card showing thumbnail, title, progress bar, and continue button" />
+
+**Card Contents:**
+
+1. **Thumbnail** - 16:9 aspect ratio course image
+2. **Course Title** - Truncated to 2 lines
+3. **Progress Information:**
+   - "X / Y lectures" label
+   - Percentage (e.g., "67%")
+   - Animated progress bar
+4. **Course Duration** - Total length formatted
+5. **Action Buttons:**
+   - "Done" badge if 100% complete
+   - "Continue" or "Review" button
+
+Progress calculation:
+
+```javascript
+const total = course.totalLectures || 0
+const completed = progressData?.lectureCompleted || 0
+const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
+const isDone = percentage === 100
+```
+
+Progress bar styling:
+
+```jsx
+<div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+  <div 
+    className={`h-full rounded-full transition-all duration-700 ${
+      isDone ? 'bg-teal-500' : 'bg-teal-400'
+    }`}
+    style={{ width: `${percentage}%` }}
+  />
+</div>
+```
+
+### Loading State
+
+While fetching progress data:
+
+```jsx
+{coursesLoading ? (
+  <div className="h-1.5 bg-gray-100 rounded-full animate-pulse" />
+) : (
+  <ProgressBar value={percentage} />
+)}
+```
+
+### Empty State
+
+When no courses enrolled:
+
+```jsx
+<div className="bg-white rounded-2xl border p-16 text-center">
+  <div className="text-5xl mb-4">🎓</div>
+  <h3 className="text-lg font-semibold mb-2">No courses yet</h3>
+  <p className="text-sm text-gray-500 mb-6">
+    Enroll in a course to start tracking your progress here.
+  </p>
+  <button onClick={() => navigate('/course-list')}>
+    Browse courses
+  </button>
+</div>
+```
+
+## Quizzes Tab
+
+Comprehensive quiz history and performance tracking:
+
+### Quiz Result Cards
+
+Each quiz attempt displayed chronologically:
+
+<img src="/images/student/quiz-history.png" alt="Quiz result cards showing scores, performance levels, and chapters" />
+
+**Card Structure:**
+
+```jsx
+<div className="quiz-result-card">
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="font-semibold">{quiz.courseTitle}</p>
+      <p className="text-sm text-gray-500">{quiz.chapterTitle}</p>
+    </div>
+    <div className="text-right">
+      <p className="text-2xl font-bold">{quiz.percentage}%</p>
+      <span className={`badge ${getBadgeColor(quiz.group)}`}>
+        {quiz.group === 'mastered' && '🏆 Mastered'}
+        {quiz.group === 'on_track' && '🎯 On Track'}
+        {quiz.group === 'needs_review' && '📖 Needs Review'}
+      </span>
+    </div>
+  </div>
+  
+  <div className="flex justify-between text-sm text-gray-400 mt-3">
+    <span>{quiz.score} / {quiz.total} correct</span>
+    <span>{formatDate(quiz.completedAt)}</span>
+  </div>
+  
+  <button onClick={() => navigate(`/player/${quiz.courseId}`)}>
+    Review Course →
+  </button>
+</div>
+```
+
+### Performance Groups
+
+Quizzes categorized by performance level:
+
+<Tabs>
+  <Tab title="Mastered">
+    **76-100% correct**
+    
+    Badge: Green with trophy icon 🏆
+    
+    Indicates strong understanding
+  </Tab>
+  <Tab title="On Track">
+    **41-75% correct**
+    
+    Badge: Yellow with target icon 🎯
+    
+    Adequate progress, room for improvement
+  </Tab>
+  <Tab title="Needs Review">
+    **0-40% correct**
+    
+    Badge: Red with book icon 📖
+    
+    Suggests reviewing chapter material
+  </Tab>
+</Tabs>
+
+### Quiz Statistics
+
+Aggregate metrics at top of tab:
+
+```jsx
+<div className="grid grid-cols-3 gap-4 mb-6">
+  <div className="stat-card">
+    <p className="text-xs text-gray-500">Total Quizzes</p>
+    <p className="text-2xl font-bold">{quizHistory.length}</p>
+  </div>
+  <div className="stat-card">
+    <p className="text-xs text-gray-500">Average Score</p>
+    <p className="text-2xl font-bold">
+      {Math.round(
+        quizHistory.reduce((sum, q) => sum + q.percentage, 0) / quizHistory.length
+      )}%
+    </p>
+  </div>
+  <div className="stat-card">
+    <p className="text-xs text-gray-500">Mastered</p>
+    <p className="text-2xl font-bold">
+      {quizHistory.filter(q => q.group === 'mastered').length}
+    </p>
+  </div>
+</div>
+```
+
+### Empty State
+
+When no quizzes taken:
+
+```jsx
+<div className="text-center py-16">
+  <div className="text-5xl mb-4">📝</div>
+  <h3 className="text-lg font-semibold mb-2">No quizzes yet</h3>
+  <p className="text-sm text-gray-500">
+    Complete course chapters to unlock quizzes and test your knowledge.
+  </p>
+</div>
+```
+
+## Certificate Access
+
+Students can download completion certificates from multiple locations:
+
+### Certificate in Player
+
+When course reaches 100%, certificate button appears in player sidebar:
+
+```jsx
+{progressPct === 100 && (
+  <div className="certificate-card">
+    <p className="font-semibold">Certificate</p>
+    <p className="text-xs">View your course completion certificate.</p>
+    <button onClick={viewCertificate} disabled={certificateLoading}>
+      {certificateLoading ? 'Opening...' : 'View Certificate'}
+    </button>
+  </div>
+)}
+```
+
+### Certificate API
+
+```javascript
+const viewCertificate = async () => {
+  setCertificateLoading(true)
+  try {
+    GET /api/user/certificate/{courseId}
+    
+    Response:
+    {
+      success: true,
+      message: "Certificate generated",
+      pdfUrl: "https://cdn.example.com/certificates/abc123.pdf"
+    }
+    
+    // Open PDF in new tab
+    if (data.pdfUrl) {
+      window.open(data.pdfUrl, '_blank', 'noopener,noreferrer')
+    }
+  } catch (error) {
+    if (error.status === 404) {
+      toast.info('Certificate not available yet')
+    } else {
+      toast.error(error.message)
+    }
+  } finally {
+    setCertificateLoading(false)
+  }
+}
+```
+
+## Responsive Design
+
+### Mobile Optimizations
+
+<Tabs>
+  <Tab title="Summary Cards">
+    Stack vertically on mobile:
+    
+    ```jsx
+    className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+    ```
+  </Tab>
+  <Tab title="Course Grid">
+    Responsive columns:
+    
+    ```jsx
+    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
+    ```
+  </Tab>
+  <Tab title="Charts">
+    - Bar chart scales to fit container
+    - Touch gestures for interactive elements
+    - Larger touch targets (44px minimum)
+  </Tab>
+  <Tab title="Tables">
+    Horizontal scroll on mobile:
+    
+    ```jsx
+    <div className="overflow-x-auto">
+      <table>{/* ... */}</table>
+    </div>
+    ```
+  </Tab>
+</Tabs>
+
+## Performance Considerations
+
+<AccordionGroup>
+  <Accordion title="Progressive Data Loading">
+    Each tab fetches its data only when activated:
+    
+    ```javascript
+    useEffect(() => {
+      if (activeTab === 'quizzes' && !quizFetched) {
+        fetchQuizHistory()
+        setQuizFetched(true)
+      }
+    }, [activeTab])
+    ```
+  </Accordion>
+  
+  <Accordion title="Parallel Progress Fetching">
+    Course progress data fetched in parallel:
+    
+    ```javascript
+    const progressArray = await Promise.all(
+      enrolledCourses.map(course => 
+        fetchProgress(course._id)
+      )
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Memoized Calculations">
+    Expensive calculations cached:
+    
+    ```javascript
+    const activeDays = useMemo(() => 
+      dailyStats.filter(d => d.duration > 0).length,
+      [dailyStats]
+    )
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Authentication Guard
+
+Dashboard requires authentication:
+
+```javascript
+if (!user) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center">
+      <div className="text-6xl mb-4">📊</div>
+      <h2 className="text-2xl font-semibold mb-2">
+        Sign in to view your dashboard
+      </h2>
+      <p className="text-gray-500 mb-4">
+        Track time spent, monitor course progress, and see your learning stats.
+      </p>
+      <button onClick={() => openSignIn()}>
+        Sign in
+      </button>
+    </div>
+  )
+}
+```
+
+## Related Features
+
+- [Learning Experience](/students/learning-experience) - Course player and progress
+- [AI Assistant](/students/ai-assistant) - Get learning support
+- [Enrolling Courses](/students/enrolling-courses) - Start new courses

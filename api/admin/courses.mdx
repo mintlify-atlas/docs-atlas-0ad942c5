@@ -1,0 +1,146 @@
+---
+title: 'Admin Courses'
+description: 'Manage and view all courses with statistics and revenue data'
+---
+
+## Get All Courses
+
+<api method="GET" endpoint="/api/admin/courses" />
+
+Retrieve all courses with detailed statistics including enrollments, revenue, and educator information.
+
+### Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token with admin role required
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="courses" type="array">
+  Array of courses sorted by creation date (newest first)
+  <Expandable title="Course object">
+    <ResponseField name="_id" type="string">
+      Course unique identifier (MongoDB ObjectId)
+    </ResponseField>
+
+    <ResponseField name="courseTitle" type="string">
+      Title of the course
+    </ResponseField>
+
+    <ResponseField name="educatorId" type="object">
+      Populated educator information
+      <Expandable title="Educator details">
+        <ResponseField name="_id" type="string">
+          Educator user ID
+        </ResponseField>
+
+        <ResponseField name="name" type="string">
+          Educator's full name
+        </ResponseField>
+
+        <ResponseField name="email" type="string">
+          Educator's email address
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+
+    <ResponseField name="enrolledCount" type="number">
+      Number of students enrolled in the course
+    </ResponseField>
+
+    <ResponseField name="isPublished" type="boolean">
+      Whether the course is published and visible to students
+    </ResponseField>
+
+    <ResponseField name="coursePrice" type="number">
+      Original course price (before discount)
+    </ResponseField>
+
+    <ResponseField name="discount" type="number">
+      Discount percentage (0-100)
+    </ResponseField>
+
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp when the course was created
+    </ResponseField>
+
+    <ResponseField name="revenue" type="number">
+      Total revenue generated from completed purchases of this course
+    </ResponseField>
+
+    <ResponseField name="purchases" type="number">
+      Number of completed purchases for this course
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "courses": [
+    {
+      "_id": "65a1b2c3d4e5f6789abcdef0",
+      "courseTitle": "Complete Web Development Bootcamp 2024",
+      "educatorId": {
+        "_id": "user_2abc123def456",
+        "name": "John Smith",
+        "email": "john.smith@example.com"
+      },
+      "enrolledCount": 342,
+      "isPublished": true,
+      "coursePrice": 4999,
+      "discount": 20,
+      "createdAt": "2024-01-12T10:30:00.000Z",
+      "revenue": 1367592,
+      "purchases": 342
+    },
+    {
+      "_id": "65a1b2c3d4e5f6789abcdef1",
+      "courseTitle": "JavaScript Mastery: From Zero to Hero",
+      "educatorId": {
+        "_id": "user_3xyz789ghi012",
+        "name": "Sarah Johnson",
+        "email": "sarah.j@example.com"
+      },
+      "enrolledCount": 287,
+      "isPublished": true,
+      "coursePrice": 3499,
+      "discount": 15,
+      "createdAt": "2024-01-10T14:20:00.000Z",
+      "revenue": 854213,
+      "purchases": 287
+    },
+    {
+      "_id": "65a1b2c3d4e5f6789abcdef2",
+      "courseTitle": "Advanced React Patterns (Draft)",
+      "educatorId": {
+        "_id": "user_4mno345pqr678",
+        "name": "Michael Chen",
+        "email": "m.chen@example.com"
+      },
+      "enrolledCount": 0,
+      "isPublished": false,
+      "coursePrice": 5999,
+      "discount": 0,
+      "createdAt": "2024-01-08T09:15:00.000Z",
+      "revenue": 0,
+      "purchases": 0
+    }
+  ]
+}
+```
+</ResponseExample>
+
+### Notes
+
+- Courses are sorted by creation date in descending order (newest first)
+- Revenue and purchase counts only include completed purchases
+- Unpublished courses will have 0 enrollments and revenue
+- The `enrolledCount` may differ from `purchases` if some students enrolled through other means (e.g., free access, promotions)
+- Prices are in the platform's base currency (INR by default)

@@ -1,0 +1,342 @@
+---
+title: 'Community Groups'
+description: 'Manage community groups - list, create, and join/leave groups'
+---
+
+## Get All Groups
+
+<api method="GET" endpoint="/api/community/groups" description="Retrieve all community groups with membership status" />
+
+### Authentication
+
+Authentication is optional. If authenticated, the response includes membership status for each group.
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the request was successful
+</ResponseField>
+
+<ResponseField name="groups" type="array">
+  Array of community group objects
+  
+  <Expandable title="group object">
+    <ResponseField name="_id" type="string">
+      Unique identifier for the group
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      Display name of the group (max 60 characters)
+    </ResponseField>
+    
+    <ResponseField name="slug" type="string">
+      URL-friendly identifier for the group
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Brief description of the group (max 200 characters)
+    </ResponseField>
+    
+    <ResponseField name="icon" type="string">
+      Emoji or icon representing the group (default: 💬)
+    </ResponseField>
+    
+    <ResponseField name="isOfficial" type="boolean">
+      Whether this is an official platform group
+    </ResponseField>
+    
+    <ResponseField name="memberCount" type="number">
+      Total number of members in the group
+    </ResponseField>
+    
+    <ResponseField name="postCount" type="number">
+      Total number of posts in the group
+    </ResponseField>
+    
+    <ResponseField name="isMember" type="boolean">
+      Whether the authenticated user is a member (only if authenticated)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Code Example
+
+<CodeGroup>
+
+```javascript JavaScript
+const response = await fetch('https://api.skillrise.com/api/community/groups', {
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN' // Optional
+  }
+});
+
+const data = await response.json();
+console.log(data.groups);
+```
+
+```python Python
+import requests
+
+url = 'https://api.skillrise.com/api/community/groups'
+headers = {'Authorization': 'Bearer YOUR_TOKEN'}  # Optional
+
+response = requests.get(url, headers=headers)
+data = response.json()
+print(data['groups'])
+```
+
+```bash cURL
+curl https://api.skillrise.com/api/community/groups \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+</CodeGroup>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "groups": [
+    {
+      "_id": "64a1b2c3d4e5f6789abcdef0",
+      "name": "JavaScript Learners",
+      "slug": "javascript-learners",
+      "description": "A community for everyone learning JavaScript",
+      "icon": "🚀",
+      "isOfficial": true,
+      "memberCount": 1247,
+      "postCount": 856,
+      "isMember": true
+    },
+    {
+      "_id": "64a1b2c3d4e5f6789abcdef1",
+      "name": "Python Developers",
+      "slug": "python-developers",
+      "description": "Share Python projects, tips, and ask questions",
+      "icon": "🐍",
+      "isOfficial": false,
+      "memberCount": 892,
+      "postCount": 543,
+      "isMember": false
+    }
+  ]
+}
+```
+
+---
+
+## Create Group
+
+<api method="POST" endpoint="/api/community/groups" description="Create a new community group" />
+
+### Authentication
+
+This endpoint requires user authentication.
+
+```bash
+Authorization: Bearer <user_token>
+```
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Name of the group (1-60 characters, will be trimmed)
+</ParamField>
+
+<ParamField body="description" type="string">
+  Description of the group (max 200 characters, will be trimmed)
+</ParamField>
+
+<ParamField body="icon" type="string">
+  Emoji or icon for the group (default: 💬)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the group was created successfully
+</ResponseField>
+
+<ResponseField name="group" type="object">
+  The newly created group object (same structure as Get Groups response)
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message if success is false
+</ResponseField>
+
+### Code Example
+
+<CodeGroup>
+
+```javascript JavaScript
+const response = await fetch('https://api.skillrise.com/api/community/groups', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_TOKEN'
+  },
+  body: JSON.stringify({
+    name: 'React Enthusiasts',
+    description: 'Discuss React patterns, hooks, and best practices',
+    icon: '⚛️'
+  })
+});
+
+const data = await response.json();
+console.log(data.group);
+```
+
+```python Python
+import requests
+
+url = 'https://api.skillrise.com/api/community/groups'
+headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_TOKEN'
+}
+payload = {
+    'name': 'React Enthusiasts',
+    'description': 'Discuss React patterns, hooks, and best practices',
+    'icon': '⚛️'
+}
+
+response = requests.post(url, json=payload, headers=headers)
+data = response.json()
+print(data['group'])
+```
+
+```bash cURL
+curl -X POST https://api.skillrise.com/api/community/groups \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "name": "React Enthusiasts",
+    "description": "Discuss React patterns, hooks, and best practices",
+    "icon": "⚛️"
+  }'
+```
+
+</CodeGroup>
+
+### Response Example
+
+```json Success
+{
+  "success": true,
+  "group": {
+    "_id": "64a1b2c3d4e5f6789abcdef2",
+    "name": "React Enthusiasts",
+    "slug": "react-enthusiasts",
+    "description": "Discuss React patterns, hooks, and best practices",
+    "icon": "⚛️",
+    "isOfficial": false,
+    "memberCount": 1,
+    "postCount": 0,
+    "isMember": true
+  }
+}
+```
+
+```json Duplicate Name
+{
+  "success": false,
+  "message": "A group with this name already exists"
+}
+```
+
+---
+
+## Toggle Group Membership
+
+<api method="POST" endpoint="/api/community/groups/:groupId/membership" description="Join or leave a group" />
+
+### Authentication
+
+This endpoint requires user authentication.
+
+```bash
+Authorization: Bearer <user_token>
+```
+
+### Path Parameters
+
+<ParamField path="groupId" type="string" required>
+  The unique identifier of the group
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the operation was successful
+</ResponseField>
+
+<ResponseField name="isMember" type="boolean">
+  New membership status (true if joined, false if left)
+</ResponseField>
+
+### Code Example
+
+<CodeGroup>
+
+```javascript JavaScript
+const groupId = '64a1b2c3d4e5f6789abcdef0';
+
+const response = await fetch(
+  `https://api.skillrise.com/api/community/groups/${groupId}/membership`,
+  {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_TOKEN'
+    }
+  }
+);
+
+const data = await response.json();
+console.log(`Now ${data.isMember ? 'member' : 'not a member'}`);
+```
+
+```python Python
+import requests
+
+group_id = '64a1b2c3d4e5f6789abcdef0'
+url = f'https://api.skillrise.com/api/community/groups/{group_id}/membership'
+headers = {'Authorization': 'Bearer YOUR_TOKEN'}
+
+response = requests.post(url, headers=headers)
+data = response.json()
+print(f"Now {'member' if data['isMember'] else 'not a member'}")
+```
+
+```bash cURL
+curl -X POST https://api.skillrise.com/api/community/groups/64a1b2c3d4e5f6789abcdef0/membership \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+</CodeGroup>
+
+### Response Example
+
+```json Joined
+{
+  "success": true,
+  "isMember": true
+}
+```
+
+```json Left
+{
+  "success": true,
+  "isMember": false
+}
+```
+
+## Notes
+
+- Groups are sorted by official status first, then by member count (descending)
+- The slug is automatically generated from the group name
+- Group creators are automatically made members of the group
+- Toggling membership is idempotent - calling it multiple times toggles between joined/left states
+- Official groups can only be created by platform administrators
+- Group names must be unique (case-insensitive)

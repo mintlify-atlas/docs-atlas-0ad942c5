@@ -1,0 +1,695 @@
+---
+title: 'Contributing Guidelines'
+description: 'How to contribute to SkillRise - development workflow, code standards, and best practices'
+icon: 'code-pull-request'
+---
+
+## Welcome Contributors
+
+Thank you for your interest in contributing to SkillRise! This guide will help you get started with the development workflow, coding standards, and submission process.
+
+<Info>
+  SkillRise is an open-source project built for students and educators. We welcome contributions of all kinds - bug fixes, features, documentation, and more.
+</Info>
+
+## Getting Started
+
+### Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+<CardGroup cols={2}>
+  <Card title="Node.js" icon="node-js">
+    Version 20 or higher required for both client and server
+  </Card>
+  <Card title="MongoDB" icon="database">
+    Local instance or MongoDB Atlas connection
+  </Card>
+  <Card title="Git" icon="git">
+    For version control and collaboration
+  </Card>
+  <Card title="Docker" icon="docker">
+    Optional, for containerized development
+  </Card>
+</CardGroup>
+
+### Required Accounts
+
+You'll need accounts for the following services:
+
+- **[Clerk](https://clerk.com)** - Authentication and user management
+- **[Stripe](https://stripe.com)** - Payment processing
+- **[Cloudinary](https://cloudinary.com)** - Media storage and CDN
+- **[Groq](https://console.groq.com)** - AI-powered features
+
+<Tip>
+  All services offer free tiers suitable for development. Use test/sandbox keys for local development.
+</Tip>
+
+## Development Setup
+
+### 1. Fork and Clone
+
+Start by forking the repository and cloning your fork:
+
+```bash
+# Fork the repo on GitHub first, then:
+git clone https://github.com/YOUR_USERNAME/skillrise.git
+cd skillrise
+
+# Add upstream remote
+git remote add upstream https://github.com/pv-pushkarverma/skillrise.git
+```
+
+### 2. Install Dependencies
+
+Install packages for both client and server:
+
+```bash
+# Install client dependencies
+cd client
+npm install
+
+# Install server dependencies
+cd ../server
+npm install
+```
+
+### 3. Configure Environment Variables
+
+Create `.env` files with your credentials:
+
+<CodeGroup>
+
+```bash server/.env
+MONGODB_URI=mongodb://localhost:27017/skillrise
+CURRENCY=INR
+
+CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+CLERK_WEBHOOK_SECRET=whsec_...
+
+CLOUDINARY_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_SECRET_KEY=your_api_secret
+
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+GROQ_CHATBOT_API_KEY=gsk_...
+GROQ_MODEL=llama-3.3-70b-versatile
+```
+
+```bash client/.env
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+VITE_BACKEND_URL=http://localhost:3000
+```
+
+</CodeGroup>
+
+<Warning>
+  Never commit `.env` files or expose API keys in your code. These files are already in `.gitignore`.
+</Warning>
+
+### 4. Seed the Database (Optional)
+
+Populate your local database with demo data:
+
+```bash
+cd server
+npm run seed
+```
+
+This creates:
+- 5 demo educators and 5 demo students
+- 5 sample courses with chapters and lectures
+- Community groups, posts, and replies
+- Quizzes and sample enrollment data
+
+### 5. Run the Development Servers
+
+Start both frontend and backend in separate terminals:
+
+<CodeGroup>
+
+```bash Client (Terminal 1)
+cd client
+npm run dev
+
+# Vite dev server starts at http://localhost:5173
+```
+
+```bash Server (Terminal 2)
+cd server
+npm run server
+
+# Express API starts at http://localhost:3000 with hot reload
+```
+
+</CodeGroup>
+
+<Note>
+  The client dev server proxies API requests to `http://localhost:3000` as configured in `VITE_BACKEND_URL`.
+</Note>
+
+### 6. Set Up Webhooks (Optional)
+
+For testing authentication and payments locally, forward webhooks using ngrok:
+
+```bash
+# Install ngrok
+npm install -g ngrok
+
+# Forward port 3000
+ngrok http 3000
+```
+
+Then configure webhook URLs in your service dashboards:
+
+| Service | Endpoint | Events |
+|---------|----------|--------|
+| Clerk | `https://your-ngrok-url.ngrok.io/clerk` | `user.created`, `user.updated` |
+| Stripe | `https://your-ngrok-url.ngrok.io/stripe` | `checkout.session.completed` |
+
+## Development Workflow
+
+### Branch Strategy
+
+SkillRise follows a Git Flow-inspired branching model:
+
+```
+main (production)
+  ↑
+  └─ dev (development)
+      ↑
+      ├─ feature/add-user-profile
+      ├─ fix/quiz-scoring-bug
+      └─ refactor/api-error-handling
+```
+
+<Steps>
+  <Step title="Create a Feature Branch">
+    Always branch from `dev`, never from `main`:
+    ```bash
+    git checkout dev
+    git pull upstream dev
+    git checkout -b feature/your-feature-name
+    ```
+  </Step>
+  
+  <Step title="Make Your Changes">
+    Write code, add tests, update documentation as needed.
+  </Step>
+  
+  <Step title="Commit Your Work">
+    Use clear, descriptive commit messages:
+    ```bash
+    git add .
+    git commit -m "Add user profile editing functionality"
+    ```
+  </Step>
+  
+  <Step title="Push to Your Fork">
+    ```bash
+    git push origin feature/your-feature-name
+    ```
+  </Step>
+  
+  <Step title="Open a Pull Request">
+    Create a PR from your fork to the `dev` branch of the main repository.
+  </Step>
+</Steps>
+
+### Commit Message Convention
+
+Use clear, imperative commit messages:
+
+<CodeGroup>
+
+```bash Good Examples
+✓ Add quiz timer functionality
+✓ Fix course enrollment redirect
+✓ Refactor authentication middleware
+✓ Update educator dashboard UI
+✓ Remove deprecated API endpoints
+```
+
+```bash Bad Examples
+✗ Updated stuff
+✗ WIP
+✗ Fixed bug
+✗ Changes
+```
+
+</CodeGroup>
+
+## Code Standards
+
+### Linting and Formatting
+
+SkillRise uses ESLint for code quality and Prettier for consistent formatting.
+
+<Tabs>
+  <Tab title="Client">
+    ```bash
+    cd client
+    
+    # Run ESLint
+    npm run lint
+    
+    # Fix auto-fixable issues
+    npm run lint:fix
+    
+    # Check formatting
+    npm run format:check
+    
+    # Format all files
+    npm run format
+    ```
+  </Tab>
+  
+  <Tab title="Server">
+    ```bash
+    cd server
+    
+    # Run ESLint
+    npm run lint
+    
+    # Fix auto-fixable issues
+    npm run lint:fix
+    
+    # Check formatting
+    npm run format:check
+    
+    # Format all files
+    npm run format
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  All PRs must pass ESLint and Prettier checks. The CI pipeline will automatically verify this.
+</Warning>
+
+### JavaScript/JSX Style Guide
+
+#### Component Structure
+
+```jsx
+import { useState, useEffect } from 'react'
+import PropTypes from 'prop-types'
+
+/**
+ * CourseCard component displays course information
+ * @param {Object} course - Course data object
+ * @param {Function} onEnroll - Enrollment callback
+ */
+const CourseCard = ({ course, onEnroll }) => {
+  const [isLoading, setIsLoading] = useState(false)
+  
+  useEffect(() => {
+    // Effect logic
+  }, [])
+  
+  const handleEnroll = async () => {
+    setIsLoading(true)
+    try {
+      await onEnroll(course.id)
+    } catch (error) {
+      console.error('Enrollment failed:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+  
+  return (
+    <div className="course-card">
+      {/* Component JSX */}
+    </div>
+  )
+}
+
+CourseCard.propTypes = {
+  course: PropTypes.object.isRequired,
+  onEnroll: PropTypes.func.isRequired,
+}
+
+export default CourseCard
+```
+
+#### API Controllers
+
+```javascript
+import Course from '../models/Course.js'
+
+/**
+ * Get all published courses
+ * @route GET /api/course
+ */
+export const getAllCourses = async (req, res) => {
+  try {
+    const courses = await Course.find({ published: true })
+      .populate('educator', 'name imageUrl')
+      .sort({ createdAt: -1 })
+    
+    res.status(200).json({
+      success: true,
+      data: courses,
+    })
+  } catch (error) {
+    console.error('Error fetching courses:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch courses',
+    })
+  }
+}
+```
+
+### File Naming Conventions
+
+<Tabs>
+  <Tab title="Client">
+    - **Components**: PascalCase with `.jsx` extension
+      - ✓ `CourseCard.jsx`
+      - ✓ `UserProfile.jsx`
+    - **Hooks**: camelCase with `use` prefix
+      - ✓ `useTimeTracker.js`
+      - ✓ `useInView.js`
+    - **Utils**: camelCase
+      - ✓ `formatDate.js`
+      - ✓ `apiClient.js`
+  </Tab>
+  
+  <Tab title="Server">
+    - **Controllers**: camelCase with `Controller` suffix
+      - ✓ `courseController.js`
+      - ✓ `userController.js`
+    - **Models**: PascalCase
+      - ✓ `Course.js`
+      - ✓ `User.js`
+    - **Routes**: camelCase with `Routes` suffix
+      - ✓ `courseRoutes.js`
+      - ✓ `adminRoutes.js`
+  </Tab>
+</Tabs>
+
+## Pull Request Process
+
+### Before Submitting
+
+<Checklist>
+  - [ ] Code follows the style guide
+  - [ ] All lint checks pass (`npm run lint`)
+  - [ ] All format checks pass (`npm run format:check`)
+  - [ ] Client builds successfully (`npm run build` in client/)
+  - [ ] Changes tested locally
+  - [ ] No console errors or warnings
+  - [ ] Environment variables documented if added
+  - [ ] Commits are clear and descriptive
+</Checklist>
+
+### PR Template
+
+When creating a pull request, include:
+
+```markdown
+## Description
+[Brief description of what this PR does]
+
+## Type of Change
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Documentation update
+
+## Testing
+[How you tested the changes]
+
+## Screenshots (if applicable)
+[Add screenshots for UI changes]
+
+## Related Issues
+Closes #[issue number]
+```
+
+### CI Checks
+
+All pull requests trigger automated CI checks via GitHub Actions:
+
+<Steps>
+  <Step title="Client Build Job">
+    - Install dependencies (`npm ci`)
+    - Run ESLint (`npm run lint`)
+    - Check Prettier formatting (`npm run format:check`)
+    - Build the app (`npm run build`)
+  </Step>
+  
+  <Step title="Server Lint Job">
+    - Install dependencies (`npm ci`)
+    - Run ESLint (`npm run lint`)
+    - Check Prettier formatting (`npm run format:check`)
+  </Step>
+</Steps>
+
+<Warning>
+  PRs cannot be merged if CI checks fail. Fix all issues before requesting review.
+</Warning>
+
+### Review Process
+
+1. **Automated Checks**: CI pipeline must pass
+2. **Code Review**: At least one maintainer approval required
+3. **Testing**: Reviewers may test changes locally
+4. **Merge**: Once approved, maintainers will merge to `dev`
+
+## Development Commands Reference
+
+### Client Commands
+
+```bash
+cd client
+
+# Development
+npm run dev              # Start Vite dev server (http://localhost:5173)
+npm run build            # Build for production
+npm run preview          # Preview production build
+
+# Code Quality
+npm run lint             # Run ESLint
+npm run lint:fix         # Fix auto-fixable ESLint issues
+npm run format           # Format code with Prettier
+npm run format:check     # Check if code is formatted
+```
+
+### Server Commands
+
+```bash
+cd server
+
+# Development
+npm run server           # Start with nodemon (hot reload)
+npm start                # Start in production mode
+npm run seed             # Populate database with demo data
+
+# Code Quality
+npm run lint             # Run ESLint
+npm run lint:fix         # Fix auto-fixable ESLint issues
+npm run format           # Format code with Prettier
+npm run format:check     # Check if code is formatted
+```
+
+### Docker Commands
+
+```bash
+# Build and run both services
+docker compose up --build
+
+# Run in detached mode
+docker compose up -d
+
+# View logs
+docker compose logs -f
+docker compose logs -f server  # Server logs only
+docker compose logs -f client  # Client logs only
+
+# Run seed script in container
+docker compose exec server node seed.js
+
+# Stop all services
+docker compose down
+
+# Remove volumes
+docker compose down -v
+```
+
+## Common Development Tasks
+
+### Adding a New API Route
+
+<Steps>
+  <Step title="Create Controller Function">
+    Add logic in appropriate controller file:
+    ```javascript
+    // server/controllers/courseController.js
+    export const getCourseByCategoryController = async (req, res) => {
+      try {
+        const { category } = req.params
+        const courses = await Course.find({ category, published: true })
+        res.status(200).json({ success: true, data: courses })
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message })
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Define Route">
+    Add route in corresponding routes file:
+    ```javascript
+    // server/routes/courseRoute.js
+    import { getCourseByCategoryController } from '../controllers/courseController.js'
+    
+    router.get('/category/:category', getCourseByCategoryController)
+    ```
+  </Step>
+  
+  <Step title="Test Endpoint">
+    Use Postman or curl to test:
+    ```bash
+    curl http://localhost:3000/api/course/category/development
+    ```
+  </Step>
+</Steps>
+
+### Adding a New React Component
+
+<Steps>
+  <Step title="Create Component File">
+    ```jsx
+    // client/src/components/student/CourseFilter.jsx
+    import { useState } from 'react'
+    
+    const CourseFilter = ({ onFilterChange }) => {
+      const [category, setCategory] = useState('')
+      
+      return (
+        <select onChange={(e) => onFilterChange(e.target.value)}>
+          <option value="">All Categories</option>
+          <option value="development">Development</option>
+          <option value="design">Design</option>
+        </select>
+      )
+    }
+    
+    export default CourseFilter
+    ```
+  </Step>
+  
+  <Step title="Import and Use">
+    ```jsx
+    import CourseFilter from '../components/student/CourseFilter'
+    
+    const CoursesPage = () => {
+      const handleFilter = (category) => {
+        // Filter logic
+      }
+      
+      return <CourseFilter onFilterChange={handleFilter} />
+    }
+    ```
+  </Step>
+</Steps>
+
+### Adding Environment Variables
+
+<Steps>
+  <Step title="Update .env Files">
+    Add the variable to appropriate `.env` file(s)
+  </Step>
+  
+  <Step title="Document in README">
+    Update the environment variables section in documentation
+  </Step>
+  
+  <Step title="Add to CI/CD">
+    If needed for builds, add to GitHub Secrets and workflow files
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Port already in use">
+    If you see "Port 3000 already in use" or "Port 5173 already in use":
+    ```bash
+    # Find and kill process on port 3000
+    lsof -ti:3000 | xargs kill -9
+    
+    # Find and kill process on port 5173
+    lsof -ti:5173 | xargs kill -9
+    ```
+  </Accordion>
+  
+  <Accordion title="MongoDB connection failed">
+    Ensure MongoDB is running:
+    ```bash
+    # Check if MongoDB is running
+    mongosh
+    
+    # Or start MongoDB service
+    brew services start mongodb-community  # macOS
+    sudo systemctl start mongod            # Linux
+    ```
+  </Accordion>
+  
+  <Accordion title="Module not found errors">
+    Reinstall dependencies:
+    ```bash
+    # Remove node_modules and reinstall
+    rm -rf node_modules package-lock.json
+    npm install
+    ```
+  </Accordion>
+  
+  <Accordion title="Clerk authentication not working">
+    Verify:
+    - Publishable key matches in both `.env` files
+    - Webhook secret is correct
+    - ngrok URL is configured in Clerk dashboard (for local webhooks)
+  </Accordion>
+</AccordionGroup>
+
+## Getting Help
+
+<CardGroup cols={2}>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/pv-pushkarverma/skillrise/issues">
+    Report bugs or request features
+  </Card>
+  <Card title="Discussions" icon="messages" href="https://github.com/pv-pushkarverma/skillrise/discussions">
+    Ask questions and share ideas
+  </Card>
+  <Card title="Documentation" icon="book">
+    Read through our full documentation
+  </Card>
+  <Card title="Code of Conduct" icon="handshake">
+    Be respectful and collaborative
+  </Card>
+</CardGroup>
+
+<Note>
+  Remember: Good code is code that others can understand. Write clear, maintainable code and document complex logic.
+</Note>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Project Structure" icon="folder-tree" href="/development/project-structure">
+    Understand the codebase organization
+  </Card>
+  <Card title="Testing Guide" icon="flask" href="/development/testing">
+    Learn about testing approaches
+  </Card>
+</CardGroup>

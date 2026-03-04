@@ -1,0 +1,643 @@
+---
+title: Managing Course Content
+description: Organize chapters, lectures, and media for your courses
+---
+
+## Overview
+
+Effective content management is crucial for maintaining high-quality courses. SkillRise provides intuitive tools to structure, organize, and update your course content.
+
+## Content Hierarchy
+
+Understand the three-level structure:
+
+```
+Course (Top level)
+├── Chapter 1 (Section/Module)
+│   ├── Lecture 1 (Video content)
+│   ├── Lecture 2
+│   └── Lecture 3
+├── Chapter 2
+│   ├── Lecture 1
+│   └── Lecture 2
+└── Chapter 3
+    └── Lecture 1
+```
+
+## Chapter Management
+
+### Creating Chapters
+
+Chapters organize your course into logical sections:
+
+<Steps>
+  <Step title="Click Add Chapter">
+    Find the "Add Chapter" button at the bottom of your content list
+  </Step>
+  <Step title="Enter Title">
+    Type a descriptive chapter name (e.g., "Introduction to React Hooks")
+  </Step>
+  <Step title="Confirm">
+    Press Enter or click "Add" to create the chapter
+  </Step>
+</Steps>
+
+**Chapter Structure:**
+
+```javascript
+{
+  chapterId: "uuid-v4-format",
+  chapterTitle: "Chapter 1: Getting Started",
+  chapterOrder: 1,
+  chapterContent: [], // Array of lectures
+  collapsed: false // UI state (not stored in database)
+}
+```
+
+### Renaming Chapters
+
+Quickly update chapter titles:
+
+<Note>
+**Double-click** on any chapter title to enter edit mode. Type the new name and press Enter to save.
+</Note>
+
+```jsx
+// Edit mode trigger
+<button
+  onDoubleClick={() => {
+    setEditingChapterId(chapter.chapterId)
+    setEditingChapterTitle(chapter.chapterTitle)
+  }}
+>
+  {chapter.chapterTitle}
+</button>
+```
+
+### Collapsing Chapters
+
+Manage large courses by collapsing chapters:
+
+- Click the **arrow icon** next to the chapter number
+- Collapsed chapters hide all lectures (UI only)
+- Useful when working with many chapters
+- State is not persisted (resets on page refresh)
+
+### Deleting Chapters
+
+<Warning>
+**Destructive Action:** Deleting a chapter removes all its lectures permanently. This action cannot be undone.
+</Warning>
+
+To delete a chapter:
+1. Click the **trash icon** on the chapter header
+2. Chapter and all its lectures are immediately removed
+3. Remaining chapters maintain their order
+
+```javascript
+const removeChapter = (id) => {
+  setChapters((prev) => prev.filter((c) => c.chapterId !== id))
+}
+```
+
+## Lecture Management
+
+### Adding Lectures
+
+Lectures are the core content of your course:
+
+<Steps>
+  <Step title="Expand Chapter">
+    Ensure the target chapter is expanded (not collapsed)
+  </Step>
+  <Step title="Click Add Lecture">
+    Find the "Add Lecture" button at the bottom of the chapter
+  </Step>
+  <Step title="Fill Modal">
+    Complete all required fields in the lecture modal
+  </Step>
+  <Step title="Save">
+    Click "Add Lecture" to insert the video into the chapter
+  </Step>
+</Steps>
+
+### Lecture Properties
+
+<ParamField path="lectureTitle" type="string" required>
+  **Lecture Title**
+  
+  Descriptive name for the video lesson
+  - Keep concise but informative
+  - Include key topics covered
+  - Example: "Introduction to React Hooks"
+</ParamField>
+
+<ParamField path="lectureDuration" type="number" required>
+  **Duration (minutes)**
+  
+  Length of the video in minutes
+  - Must be a valid number
+  - Used for total course duration calculation
+  - Displayed to students as "15m", "2h 30m", etc.
+</ParamField>
+
+<ParamField path="lectureUrl" type="url" required>
+  **Video URL**
+  
+  Link to hosted video content
+  - Supports: YouTube, Vimeo, direct video links
+  - Must be publicly accessible
+  - Validated for proper URL format
+  - Example: `https://youtube.com/watch?v=abc123`
+</ParamField>
+
+<ParamField path="isPreviewFree" type="boolean" default="false">
+  **Free Preview**
+  
+  Allow non-enrolled students to watch
+  - Toggle on/off in the lecture modal
+  - Free lectures show a "FREE" badge
+  - Useful for introduction or overview lectures
+  - Helps students sample your teaching style
+</ParamField>
+
+### Lecture Data Structure
+
+```javascript
+const lecture = {
+  lectureId: "8f4e5d3a-1b2c-4d5e-8f7g-9h0i1j2k3l4m",
+  lectureTitle: "Understanding State Management",
+  lectureDuration: 22, // minutes
+  lectureUrl: "https://youtube.com/watch?v=abc123",
+  isPreviewFree: false,
+  lectureOrder: 1 // Position within chapter
+}
+```
+
+### Lecture Display
+
+Lectures are displayed with visual indicators:
+
+<Tabs>
+  <Tab title="Normal Lecture">
+    ```
+    🎬 1. Understanding State Management    22m
+    ```
+    - Play icon
+    - Lecture number and title
+    - Duration badge
+  </Tab>
+  <Tab title="Free Preview Lecture">
+    ```
+    🎬 1. Course Introduction    15m    [FREE]
+    ```
+    - Play icon
+    - Lecture number and title
+    - Duration badge
+    - Green "FREE" badge
+  </Tab>
+</Tabs>
+
+### Deleting Lectures
+
+Remove individual lectures without affecting others:
+
+1. Hover over the lecture row
+2. Click the **X icon** that appears
+3. Lecture is immediately removed from the chapter
+
+```javascript
+const removeLecture = (chapterId, lectureIndex) => {
+  setChapters((prev) =>
+    prev.map((chapter) => {
+      if (chapter.chapterId !== chapterId) return chapter
+      
+      const content = [...chapter.chapterContent]
+      content.splice(lectureIndex, 1) // Remove at index
+      
+      return { ...chapter, chapterContent: content }
+    })
+  )
+}
+```
+
+## Media Upload
+
+### Supported Video Platforms
+
+<CardGroup cols={3}>
+  <Card title="YouTube" icon="youtube">
+    Most common choice for educators
+    - Free hosting
+    - Reliable streaming
+    - Built-in player
+  </Card>
+  <Card title="Vimeo" icon="vimeo">
+    Professional video hosting
+    - Ad-free playback
+    - Better privacy controls
+    - Higher quality options
+  </Card>
+  <Card title="Direct Links" icon="video">
+    Self-hosted or CDN videos
+    - Full control
+    - Custom players
+    - Requires own hosting
+  </Card>
+</CardGroup>
+
+### Video URL Validation
+
+The system validates URLs before accepting:
+
+```javascript
+try {
+  new URL(details.lectureUrl) // Throws if invalid
+  // URL is valid, proceed
+} catch {
+  toast.error('Please enter a valid URL')
+  return
+}
+```
+
+<Info>
+Video URLs must start with `http://` or `https://` and follow standard URL format.
+</Info>
+
+### Thumbnail Upload
+
+Course thumbnails are uploaded separately:
+
+**Upload Process:**
+
+<Steps>
+  <Step title="Select File">
+    Drag and drop or click to browse for image file
+  </Step>
+  <Step title="Client Preview">
+    Image is previewed locally using `URL.createObjectURL()`
+  </Step>
+  <Step title="Server Upload">
+    On course submission, file is sent to backend
+  </Step>
+  <Step title="Cloudinary Processing">
+    Backend uploads to Cloudinary CDN
+  </Step>
+  <Step title="URL Stored">
+    Cloudinary secure URL is saved to database
+  </Step>
+</Steps>
+
+```javascript
+// Backend thumbnail processing
+const imageUpload = await cloudinary.uploader.upload(imageFile.path)
+newCourse.courseThumbnail = imageUpload.secure_url
+await newCourse.save()
+```
+
+<Warning>
+**Image Requirements:**
+- Formats: PNG, JPG, WEBP
+- Recommended: 1280 × 720 pixels (16:9 ratio)
+- Clear, high-contrast design
+- No blur or pixelation
+</Warning>
+
+## Content Organization Best Practices
+
+### Chapter Structuring
+
+<AccordionGroup>
+  <Accordion title="Beginner Courses">
+    - Start with "Getting Started" or "Introduction" chapter
+    - Include setup/installation in first chapter
+    - Progress from basic to advanced concepts
+    - End with "Next Steps" or "Conclusion" chapter
+  </Accordion>
+  
+  <Accordion title="Advanced Courses">
+    - Brief prerequisites chapter
+    - Dive into core topics immediately
+    - Group related advanced concepts
+    - Include real-world project chapters
+  </Accordion>
+  
+  <Accordion title="Project-Based Courses">
+    - Planning and setup chapter
+    - Feature-by-feature chapters
+    - Testing and deployment chapter
+    - Improvements and extensions chapter
+  </Accordion>
+</AccordionGroup>
+
+### Lecture Optimization
+
+<Tabs>
+  <Tab title="Ideal Length">
+    **5-20 Minutes Per Lecture**
+    
+    - Maintains student attention
+    - Easy to fit into busy schedules
+    - Natural break points
+    - Better completion rates
+    
+    ```javascript
+    // Good structure
+    {
+      lectureDuration: 12, // Sweet spot
+      lectureTitle: "Focused, single-concept title"
+    }
+    ```
+  </Tab>
+  <Tab title="Longer Sessions">
+    **20-45 Minutes**
+    
+    Acceptable for:
+    - Complex implementations
+    - Coding walkthroughs
+    - Project completion
+    - Live debugging sessions
+    
+    Consider breaking into parts if over 30 minutes
+  </Tab>
+  <Tab title="Avoid">
+    **Over 60 Minutes**
+    
+    Problems:
+    - High drop-off rates
+    - Difficult to maintain focus
+    - Hard to reference later
+    - Should be split into multiple lectures
+  </Tab>
+</Tabs>
+
+### Free Preview Strategy
+
+<Check>
+**Recommended Free Lectures:**
+</Check>
+
+1. **First lecture** - Welcome and course overview
+2. **Sample lecture** - Mid-course example of teaching style
+3. **Project demo** - Show final result to motivate enrollment
+
+```javascript
+// Strategic free previews
+const courseContent = [
+  {
+    chapterTitle: "Introduction",
+    chapterContent: [
+      {
+        lectureTitle: "Welcome & Course Overview",
+        isPreviewFree: true // ✓ First impression
+      }
+    ]
+  },
+  {
+    chapterTitle: "Core Concepts",
+    chapterContent: [
+      {
+        lectureTitle: "Component Fundamentals",
+        isPreviewFree: true // ✓ Show teaching quality
+      }
+    ]
+  },
+  {
+    chapterTitle: "Final Project",
+    chapterContent: [
+      {
+        lectureTitle: "Project Demo",
+        isPreviewFree: true // ✓ Motivate purchase
+      }
+    ]
+  }
+]
+```
+
+## Auto-Calculated Metrics
+
+The system automatically tracks:
+
+### Total Lectures
+
+```javascript
+// Frontend calculation
+const totalLectures = chapters.reduce(
+  (sum, chapter) => sum + chapter.chapterContent.length,
+  0
+)
+
+// Backend verification
+let totalLectures = 0
+courseContent.forEach((chapter) => {
+  if (Array.isArray(chapter.chapterContent)) {
+    totalLectures += chapter.chapterContent.length
+  }
+})
+```
+
+### Total Duration
+
+```javascript
+// Sum all lecture durations
+let totalDurationMinutes = 0
+
+chapters.forEach((chapter) => {
+  chapter.chapterContent.forEach((lecture) => {
+    totalDurationMinutes += lecture.lectureDuration
+  })
+})
+
+// Display formatting
+const hours = Math.floor(totalDurationMinutes / 60)
+const minutes = totalDurationMinutes % 60
+const display = hours > 0 
+  ? `${hours}h ${minutes}m`
+  : `${minutes}m`
+```
+
+### Content Completeness
+
+Validation checks ensure quality:
+
+```javascript
+// Section validation
+const step3Complete = 
+  chapters.length > 0 &&      // At least one chapter
+  totalLectures > 0 &&        // At least one lecture
+  chapters.every(chapter =>   // All chapters have content
+    chapter.chapterContent.length > 0
+  )
+```
+
+<Info>
+These metrics update in real-time as you add or remove content.
+</Info>
+
+## ID Generation
+
+Unique IDs are generated for chapters and lectures:
+
+```javascript
+const createId = () =>
+  typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID() // Modern browsers
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}` // Fallback
+
+// Example IDs:
+// "8f4e5d3a-1b2c-4d5e-8f7g-9h0i1j2k3l4m" (UUID v4)
+// "l5x8k9m2-a1b2c3d4" (Fallback)
+```
+
+<Warning>
+Never modify IDs manually. Always use the system-generated IDs.
+</Warning>
+
+## Database Schema
+
+### Course Model
+
+```javascript
+const courseSchema = new mongoose.Schema({
+  // Basic info
+  courseTitle: { type: String, required: true },
+  courseDescription: { type: String, required: true },
+  courseThumbnail: { type: String }, // Cloudinary URL
+  coursePrice: { type: Number, required: true },
+  discount: { type: Number, required: true, min: 0, max: 100 },
+  isPublished: { type: Boolean, default: true },
+  
+  // Content
+  courseContent: [chapterSchema],
+  
+  // Calculated fields
+  totalLectures: { type: Number, default: 0 },
+  totalDurationMinutes: { type: Number, default: 0 },
+  
+  // Relationships
+  educatorId: { type: String, ref: 'User', required: true },
+  enrolledStudents: [{ type: String, ref: 'User' }],
+  
+  // Ratings
+  courseRatings: [{
+    userId: { type: String },
+    rating: { type: Number, min: 1, max: 5 }
+  }],
+  averageRating: { type: Number, default: 0 },
+  totalRatings: { type: Number, default: 0 }
+}, { timestamps: true })
+```
+
+### Chapter Schema
+
+```javascript
+const chapterSchema = new mongoose.Schema({
+  chapterId: { type: String, required: true },
+  chapterOrder: { type: Number, required: true },
+  chapterTitle: { type: String, required: true },
+  chapterContent: [lectureSchema]
+}, { _id: false })
+```
+
+### Lecture Schema
+
+```javascript
+const lectureSchema = new mongoose.Schema({
+  lectureId: { type: String, required: true },
+  lectureTitle: { type: String, required: true },
+  lectureDuration: { type: Number, required: true },
+  lectureUrl: { type: String, required: true },
+  isPreviewFree: { type: Boolean, required: true },
+  lectureOrder: { type: Number, required: true }
+}, { _id: false })
+```
+
+## Updating Existing Courses
+
+<Note>
+The current implementation creates new courses. To add course editing functionality, you would need to:
+
+1. Fetch existing course by ID
+2. Pre-populate the form with current data
+3. Use PUT/PATCH endpoint instead of POST
+4. Handle partial updates
+5. Maintain existing enrollment data
+</Note>
+
+**Future Edit Implementation:**
+
+```javascript
+// Fetch for editing
+const { data } = await axios.get(
+  `${backendUrl}/api/educator/course/${courseId}`,
+  { headers: { Authorization: `Bearer ${token}` } }
+)
+
+// Populate form
+setCourseTitle(data.course.courseTitle)
+setDescription(data.course.courseDescription)
+setChapters(data.course.courseContent)
+// ... etc
+
+// Update instead of create
+const { data } = await axios.put(
+  `${backendUrl}/api/educator/course/${courseId}`,
+  formData,
+  { headers: { Authorization: `Bearer ${token}` } }
+)
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Lectures won't add">
+    **Possible causes:**
+    - Chapter is collapsed (expand it first)
+    - Required fields are empty in modal
+    - Video URL is invalid format
+    - Duration is not a number
+    
+    **Solution:**
+    Ensure all fields are properly filled and validated before clicking "Add Lecture"
+  </Accordion>
+  
+  <Accordion title="Chapters disappear">
+    **Possible causes:**
+    - Accidentally clicked delete
+    - Browser refreshed before saving
+    - Network error during submission
+    
+    **Solution:**
+    Content is only saved when you click "Publish Course". Save frequently and verify before refreshing.
+  </Accordion>
+  
+  <Accordion title="Total duration incorrect">
+    **Possible causes:**
+    - Lecture durations entered incorrectly
+    - Non-numeric values in duration field
+    
+    **Solution:**
+    Verify each lecture's duration is accurate. The total is calculated automatically.
+  </Accordion>
+  
+  <Accordion title="Video not playing for students">
+    **Possible causes:**
+    - Video is private/unlisted on hosting platform
+    - URL is broken or changed
+    - Video was deleted from source
+    
+    **Solution:**
+    Test video URLs before adding. Ensure videos are public and accessible.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Monitor Performance" icon="chart-line" href="/educators/dashboard">
+    Track course enrollments and revenue
+  </Card>
+  <Card title="View Students" icon="users" href="/educators/student-management">
+    See who's enrolled in your courses
+  </Card>
+</CardGroup>

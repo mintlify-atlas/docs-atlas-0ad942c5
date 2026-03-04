@@ -1,0 +1,718 @@
+---
+title: 'AI-Powered Features'
+description: 'Groq AI integration for personalized chatbots, learning roadmaps, and adaptive quizzes'
+icon: 'brain'
+---
+
+## Overview
+
+SkillRise leverages **Groq AI** to provide intelligent, context-aware learning assistance. The platform offers three major AI features: a personalized chatbot, dynamic learning roadmaps, and adaptive quiz generation.
+
+## AI Architecture
+
+<CardGroup cols={3}>
+  <Card title="Chatbot" icon="comments">
+    Context-aware learning assistant with conversation history
+  </Card>
+  <Card title="Roadmaps" icon="route">
+    Personalized and custom learning path generation
+  </Card>
+  <Card title="Quizzes" icon="clipboard-question">
+    Auto-generated chapter quizzes with AI recommendations
+  </Card>
+</CardGroup>
+
+## Groq Integration
+
+### AI Service Configuration
+
+```javascript server/services/chatbot/aiChatbotService.js
+import { Groq } from 'groq-sdk'
+
+const groq = new Groq({ apiKey: process.env.GROQ_CHATBOT_API_KEY })
+
+export const generateAIResponse = async (messages) => {
+  const completion = await groq.chat.completions.create({
+    model: 'openai/gpt-oss-120b',
+    messages,
+    temperature: 0.7,
+    max_tokens: 5000,
+    top_p: 1,
+    stream: false,
+  })
+
+  return completion.choices?.[0]?.message?.content?.trim() 
+    || 'No response generated.'
+}
+```
+
+<Note>
+  Groq provides ultra-fast inference with the `openai/gpt-oss-120b` model, enabling real-time AI interactions.
+</Note>
+
+## Personalized AI Chatbot
+
+### Context Building
+
+The chatbot builds rich user context from enrollment and performance data:
+
+```javascript server/controllers/chatbotController.js
+async function buildUserContext(userId) {
+  try {
+    const user = await User.findById(userId).populate(
+      'enrolledCourses',
+      'courseTitle courseContent'
+    )
+
+    if (!user || user.enrolledCourses.length === 0) {
+      return `Student has not enrolled in any courses yet.`
+    }
+
+    const courseIds = user.enrolledCourses.map((c) => c._id.toString())
+
+    const [progressRecords, quizResults] = await Promise.all([
+      CourseProgress.find({ userId, courseId: { $in: courseIds } }),
+      QuizResult.find({ userId }).sort({ createdAt: -1 }).limit(20),
+    ])
+
+    // Map courseId -> progress record
+    const progressMap = {}
+    progressRecords.forEach((p) => {
+      progressMap[p.courseId] = p
+    })
+
+    // Build per-course context lines
+    const courseLines = user.enrolledCourses
+      .map((course) => {
+        const courseId = course._id.toString()
+        const progress = progressMap[courseId]
+        const totalLectures = course.courseContent.reduce(
+          (sum, ch) => sum + ch.chapterContent.length,
+          0
+        )
+        const completedLectures = progress?.lectureCompleted?.length || 0
+        const pct = totalLectures > 0 
+          ? Math.round((completedLectures / totalLectures) * 100) 
+          : 0
+        const chapters = course.courseContent
+          .map((ch) => ch.chapterTitle)
+          .join(', ')
+        return `  • "${course.courseTitle}" — ${pct}% complete (${completedLectures}/${totalLectures} lectures)\n    Chapters: ${chapters}`
+      })
+      .join('\n')
+
+    // Build quiz context with performance grouping
+    let quizSection = 'Quiz Performance: No quizzes taken yet.'
+    if (quizResults.length > 0) {
+      const groupLabel = {
+        needs_review: 'Needs Review',
+        on_track: 'On Track',
+        mastered: 'Mastered',
+      }
+      const quizLines = quizResults
+        .map((qr) => {
+          const courseInfo = courseLookup[qr.courseId]
+          const courseTitle = courseInfo?.title || 'Unknown Course'
+          const chapterTitle = courseInfo?.chapters[qr.chapterId] 
+            || 'Unknown Chapter'
+          return `  • ${courseTitle} — ${chapterTitle}: ${qr.score}/${qr.total} (${qr.percentage}%) [${groupLabel[qr.group] || qr.group}]`
+        })
+        .join('\n')
+
+      quizSection = `Quiz Performance (most recent first):\n${quizLines}`
+    }
+
+    return `Student Name: ${user.name}
+
+Enrolled Courses & Progress:
+${courseLines}
+
+${quizSection}`
+  } catch (err) {
+    console.error('Failed to build user context:', err)
+    return 'User context unavailable.'
+  }
+}
+```
+
+<Steps>
+  <Step title="Data Collection">
+    Gather user enrollment, progress, and quiz performance data.
+  </Step>
+  <Step title="Progress Calculation">
+    Calculate completion percentage for each enrolled course.
+  </Step>
+  <Step title="Performance Analysis">
+    Analyze recent quiz results and performance groupings.
+  </Step>
+  <Step title="Context Formatting">
+    Format data into a natural language context for the AI.
+  </Step>
+</Steps>
+
+### System Prompt Generation
+
+```javascript server/controllers/chatbotController.js
+function buildSystemPrompt(userContext) {
+  return `You are SkillRise AI Assistant, a personalized learning companion for the SkillRise e-learning platform.
+- Help students with course content, tech-learning questions, and study guidance.
+- Be concise, encouraging, and focused on educational queries.
+- Use the student's learning context below to give personalized, relevant advice.
+- When asked what to study next or where to focus, use their quiz performance and progress to guide them specifically.
+- If a student is marked "Needs Review" on a topic, proactively suggest they revisit it.
+
+=== STUDENT LEARNING CONTEXT ===
+${userContext}
+=================================`
+}
+```
+
+### Chat Endpoint
+
+```javascript server/controllers/chatbotController.js
+export const aiChatbot = async (req, res) => {
+  try {
+    const userId = req.auth.userId
+    const { content, sessionId } = req.body
+
+    // Build fresh personalized system prompt on every request
+    const userContext = await buildUserContext(userId)
+    const systemPrompt = buildSystemPrompt(userContext)
+
+    // Find existing session or create new one
+    let chat = await ChatSession.findOne({ sessionId, userId })
+
+    if (!chat) {
+      chat = await ChatSession.create({
+        userId,
+        sessionId: uuidv4(),
+        messages: [],
+      })
+    }
+
+    const history = chat.messages.slice(-20)
+    const activeSessionId = chat.sessionId
+
+    chat.messages.push({ role: 'user', content })
+
+    // Always inject fresh system prompt for the AI call
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...history
+        .filter((m) => m.role !== 'system')
+        .map(({ role, content }) => ({ role, content })),
+      { role: 'user', content: content.trim() },
+    ]
+
+    const aiReply = await generateAIResponse(messages)
+
+    chat.messages.push({ role: 'assistant', content: aiReply })
+    await chat.save()
+
+    return res.json({
+      success: true,
+      activeSessionId,
+      response: aiReply,
+      conversationHistory: chat.messages,
+    })
+  } catch (err) {
+    console.error('Chatbot Error:', err)
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Failed to generate AI response.' 
+    })
+  }
+}
+```
+
+<Info>
+  The system prompt is rebuilt on every request to ensure the AI always has up-to-date information about the student's progress.
+</Info>
+
+## AI-Generated Learning Roadmaps
+
+### Personal Roadmap
+
+Generate a roadmap based on enrolled courses:
+
+```javascript server/controllers/roadmapController.js
+export const generatePersonalRoadmap = async (req, res) => {
+  try {
+    const userId = req.auth.userId
+
+    const userData = await User.findById(userId).populate({
+      path: 'enrolledCourses',
+      select: 'courseTitle courseDescription courseContent',
+    })
+
+    if (!userData || userData.enrolledCourses.length === 0) {
+      return res.json({
+        success: false,
+        message: 'No enrolled courses found. Enroll in some courses first.',
+      })
+    }
+
+    // Calculate per-course completion %
+    const courseStats = await Promise.all(
+      userData.enrolledCourses.map(async (course) => {
+        const progress = await CourseProgress.findOne({ 
+          userId, 
+          courseId: course._id.toString() 
+        })
+        const totalLectures = course.courseContent.reduce(
+          (s, ch) => s + (ch.chapterContent?.length || 0),
+          0
+        )
+        const doneLectures = progress?.lectureCompleted?.length || 0
+        const pct = totalLectures > 0 
+          ? Math.round((doneLectures / totalLectures) * 100) 
+          : 0
+        return {
+          title: course.courseTitle,
+          completionPercent: pct,
+          totalLectures,
+          doneLectures,
+        }
+      })
+    )
+
+    const courseList = courseStats
+      .map(
+        (stat) =>
+          `- "${stat.title}" — ${stat.completionPercent}% complete (${stat.doneLectures}/${stat.totalLectures} lectures)`
+      )
+      .join('\n\n')
+
+    const prompt = `You are a professional learning path advisor. 
+Analyze this learner's enrolled courses and progress, then output a personalized roadmap as strict JSON only.
+
+LEARNER'S COURSES:
+${courseList}
+
+Return ONLY this exact JSON shape:
+{
+  "title": "Your Personalized Learning Roadmap",
+  "summary": "4–5 sentence motivating overview",
+  "stages": [
+    {
+      "id": "mastered",
+      "label": "What You've Mastered",
+      "status": "completed",
+      "icon": "🏆",
+      "skills": ["skill 1", "skill 2", "skill 3"],
+      "highlights": ["achievement 1", "achievement 2"],
+      "description": "4–5 sentences about accomplishments"
+    },
+    {
+      "id": "in_progress",
+      "label": "Currently Building",
+      "status": "current",
+      "icon": "⚡",
+      "skills": ["active skill 1", "active skill 2"],
+      "courses": [{"title": "Course Title", "completion": 45}],
+      "description": "4-5 sentences about active learning"
+    },
+    {
+      "id": "next_steps",
+      "label": "Recommended Next Steps",
+      "status": "upcoming",
+      "icon": "🎯",
+      "recommendations": [
+        {"title": "Topic", "priority": "high", "reason": "reason"}
+      ],
+      "description": "4–5 sentences about next steps"
+    },
+    {
+      "id": "career_paths",
+      "label": "Career Destinations",
+      "status": "future",
+      "icon": "🚀",
+      "paths": [
+        {"title": "Job Role", "readiness": 70, "gap": ["skill 1"]}
+      ],
+      "description": "4–5 sentences about career opportunities"
+    }
+  ]
+}`
+
+    const raw = await generateAIResponse([
+      {
+        role: 'system',
+        content: 'You are a JSON generator. Output only valid JSON.',
+      },
+      { role: 'user', content: prompt },
+    ])
+
+    const roadmap = parseJSON(raw)
+    const roadmapValidation = RoadmapSchema.safeParse(roadmap)
+    
+    if (!roadmapValidation.success) {
+      return res.json({ 
+        success: false, 
+        message: 'Failed to parse AI response.' 
+      })
+    }
+
+    res.json({ 
+      success: true, 
+      roadmap: roadmapValidation.data, 
+      courseStats 
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ 
+      success: false, 
+      message: 'An unexpected error occurred' 
+    })
+  }
+}
+```
+
+<Info>
+  Roadmaps are generated dynamically based on real-time course progress, providing personalized learning paths.
+</Info>
+
+### Custom Topic Roadmap
+
+Generate a roadmap for any topic:
+
+```javascript server/controllers/roadmapController.js
+export const generateCustomRoadmap = async (req, res) => {
+  try {
+    const { topic } = req.body
+
+    const prompt = `You are a professional learning path advisor. 
+Generate a comprehensive learning roadmap for: "${topic}"
+
+Return ONLY this exact JSON shape:
+{
+  "title": "${topic} — Learning Roadmap",
+  "summary": "2–3 sentence overview",
+  "stages": [
+    {
+      "id": "foundations",
+      "label": "Prerequisites & Foundations",
+      "status": "upcoming",
+      "icon": "📚",
+      "skills": ["prerequisite 1", "prerequisite 2"],
+      "timeEstimate": "3–4 weeks",
+      "resources": ["resource 1", "resource 2"],
+      "description": "1–2 sentences about foundations"
+    },
+    {
+      "id": "core_skills",
+      "label": "Core Skills",
+      "status": "upcoming",
+      "icon": "⚡",
+      "skills": ["core skill 1", "core skill 2"],
+      "timeEstimate": "6–10 weeks",
+      "projects": ["project 1", "project 2"],
+      "description": "1–2 sentences about core skills"
+    },
+    {
+      "id": "advanced",
+      "label": "Advanced Topics",
+      "status": "upcoming",
+      "icon": "🔬",
+      "skills": ["advanced skill 1", "advanced skill 2"],
+      "timeEstimate": "8–12 weeks",
+      "projects": ["intermediate project 1"],
+      "description": "1–2 sentences about advanced concepts"
+    },
+    {
+      "id": "mastery",
+      "label": "Mastery & Career Paths",
+      "status": "future",
+      "icon": "🚀",
+      "paths": [
+        {"title": "Career Path 1", "readiness": 0, "gap": []}
+      ],
+      "certifications": ["certification 1"],
+      "description": "1–2 sentences about mastery"
+    }
+  ]
+}`
+
+    const raw = await generateAIResponse([
+      {
+        role: 'system',
+        content: 'You are a JSON generator. Output only valid JSON.',
+      },
+      { role: 'user', content: prompt },
+    ])
+
+    const roadmap = parseJSON(raw)
+    const roadmapValidation = RoadmapSchema.safeParse(roadmap)
+    
+    if (!roadmapValidation.success) {
+      return res.json({ 
+        success: false, 
+        message: 'Failed to parse AI response.' 
+      })
+    }
+
+    res.json({ success: true, roadmap: roadmapValidation.data })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ 
+      success: false, 
+      message: 'An unexpected error occurred' 
+    })
+  }
+}
+```
+
+## AI-Generated Quizzes
+
+### Quiz Generation
+
+Automatically generate quizzes from chapter content:
+
+```javascript server/controllers/quizController.js
+const buildQuiz = async (course, chapter) => {
+  const lectureList = chapter.chapterContent
+    .map((lecture) => lecture.lectureTitle)
+    .join(', ')
+
+  const prompt = `You are an educational quiz generator. 
+Generate a quiz for a chapter titled "${chapter.chapterTitle}" from "${course.courseTitle}".
+The chapter covers: ${lectureList}.
+
+Generate exactly 10 multiple-choice questions that test conceptual understanding.
+Return ONLY valid JSON in this structure:
+{
+  "questions": [
+    {
+      "question": "Question text?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctIndex": 0,
+      "explanation": "Brief explanation."
+    }
+  ]
+}`
+
+  const raw = await generateAIResponse([{ role: 'user', content: prompt }])
+
+  const jsonStr = raw.replace(/```json|```/g, '').trim()
+  const rawParsed = JSON.parse(jsonStr)
+
+  const quizValidation = QuizResponseSchema.safeParse(rawParsed)
+  if (!quizValidation.success) {
+    throw new Error('AI returned invalid quiz structure')
+  }
+
+  const quiz = await Quiz.findOneAndUpdate(
+    { courseId: course._id.toString(), chapterId: chapter.chapterId },
+    {
+      courseId: course._id.toString(),
+      chapterId: chapter.chapterId,
+      chapterTitle: chapter.chapterTitle,
+      courseTitle: course.courseTitle,
+      questions: quizValidation.data.questions,
+    },
+    { upsert: true, new: true }
+  )
+
+  return quiz
+}
+```
+
+### Quiz Submission with AI Recommendations
+
+```javascript server/controllers/quizController.js
+export const submitQuiz = async (req, res) => {
+  try {
+    const userId = req.auth.userId
+    const { courseId, chapterId, answers } = req.body
+
+    const quiz = await Quiz.findOne({ courseId, chapterId })
+
+    // Score the quiz
+    let score = 0
+    const wrongQuestions = []
+    quiz.questions.forEach((q, i) => {
+      if (answers[i] === q.correctIndex) {
+        score++
+      } else {
+        wrongQuestions.push(q.question)
+      }
+    })
+
+    const total = quiz.questions.length
+    const percentage = Math.round((score / total) * 100)
+    const group = getGroup(percentage) // needs_review, on_track, mastered
+
+    // AI recommendations based on performance
+    const wrongList = wrongQuestions.length
+      ? wrongQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')
+      : 'None — all questions answered correctly!'
+
+    const recPrompt = `A student scored ${score}/${total} (${percentage}%) on "${quiz.chapterTitle}" from "${quiz.courseTitle}".
+They are in the "${GROUP_LABEL[group]}" group.
+
+Questions they answered incorrectly:
+${wrongList}
+
+Provide 4-5 concise, actionable bullet points to help them improve. Focus on:
+- Concepts to revisit
+- Short exercises or practice ideas
+- Motivational tips suited to their performance level
+
+Return only the bullet points (start each with •).`
+
+    const recommendations = await generateAIResponse([
+      { role: 'user', content: recPrompt }
+    ])
+
+    // Persist result
+    const result = await QuizResult.create({
+      userId,
+      courseId,
+      chapterId,
+      score,
+      total,
+      percentage,
+      group,
+      recommendations,
+      answers,
+    })
+
+    res.json({
+      success: true,
+      result: {
+        score: result.score,
+        total: result.total,
+        percentage: result.percentage,
+        group: result.group,
+        recommendations: result.recommendations,
+      },
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ 
+      success: false, 
+      message: 'An unexpected error occurred' 
+    })
+  }
+}
+```
+
+<Steps>
+  <Step title="Score Calculation">
+    Compare student answers with correct indices to calculate score.
+  </Step>
+  <Step title="Performance Grouping">
+    Categorize performance: needs_review (≤40%), on_track (41-75%), mastered (>75%).
+  </Step>
+  <Step title="AI Recommendations">
+    Generate personalized study recommendations based on wrong answers.
+  </Step>
+  <Step title="Result Storage">
+    Save quiz results for progress tracking and chatbot context.
+  </Step>
+</Steps>
+
+## Performance Groups
+
+<CardGroup cols={3}>
+  <Card title="Needs Review" icon="triangle-exclamation" color="#ef4444">
+    Score ≤ 40%. Student should revisit chapter content.
+  </Card>
+  <Card title="On Track" icon="chart-line" color="#f59e0b">
+    Score 41-75%. Student has basic understanding but needs practice.
+  </Card>
+  <Card title="Mastered" icon="trophy" color="#10b981">
+    Score > 75%. Student has strong grasp of the material.
+  </Card>
+</CardGroup>
+
+## JSON Parsing Strategy
+
+Robust JSON extraction from AI responses:
+
+```javascript server/controllers/roadmapController.js
+const parseJSON = (raw) => {
+  const strategies = [
+    () => JSON.parse(raw.trim()),
+    () => {
+      const m = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+      return m ? JSON.parse(m[1]) : null
+    },
+    () => {
+      const m = raw.match(/\{[\s\S]*\}/)
+      return m ? JSON.parse(m[0]) : null
+    },
+  ]
+  for (const strategy of strategies) {
+    try {
+      const result = strategy()
+      if (result) return result
+    } catch {
+      /* try next strategy */
+    }
+  }
+  return null
+}
+```
+
+<Info>
+  Multiple parsing strategies ensure robust JSON extraction even when AI wraps responses in markdown code blocks.
+</Info>
+
+## Environment Variables
+
+```bash .env
+GROQ_CHATBOT_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxx
+```
+
+## Key Features
+
+<AccordionGroup>
+  <Accordion title="Context-Aware Chatbot">
+    Chatbot receives real-time data about enrolled courses, progress, and quiz performance to provide personalized guidance.
+  </Accordion>
+  
+  <Accordion title="Dynamic Roadmaps">
+    Both personal (based on enrollments) and custom (any topic) roadmaps are generated with structured stages and time estimates.
+  </Accordion>
+  
+  <Accordion title="Adaptive Quizzes">
+    Quizzes are auto-generated from chapter content and include AI-powered study recommendations based on performance.
+  </Accordion>
+  
+  <Accordion title="Performance Tracking">
+    Quiz results feed back into chatbot context, creating a closed loop of personalized learning assistance.
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Tip>
+  **Refresh Context Frequently**: Rebuild user context on every chatbot request to ensure AI has current information.
+</Tip>
+
+<Tip>
+  **Validate AI Output**: Always use Zod schemas to validate AI-generated JSON before using it in the application.
+</Tip>
+
+<Tip>
+  **Limit Context Size**: Use `.slice(-20)` on conversation history to keep context within token limits.
+</Tip>
+
+<Tip>
+  **Structured Prompts**: Use detailed prompts with exact JSON schemas to improve AI output consistency.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Analytics" icon="chart-bar" href="/features/analytics">
+    Track learning time and quiz performance
+  </Card>
+  <Card title="Community" icon="users" href="/features/community">
+    Connect with other learners for peer support
+  </Card>
+  <Card title="Course Management" icon="book" href="/features/course-management">
+    Understand the content structure AI analyzes
+  </Card>
+</CardGroup>

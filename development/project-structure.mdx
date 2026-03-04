@@ -1,0 +1,411 @@
+---
+title: 'Project Structure'
+description: 'Comprehensive overview of SkillRise directory structure and architecture'
+icon: 'folder-tree'
+---
+
+## Overview
+
+SkillRise follows a monorepo structure with clear separation between frontend and backend. The project is organized into two main directories: `client/` for the React frontend and `server/` for the Express backend.
+
+<Info>
+  The project uses modern tooling including Vite for frontend builds, Docker for containerization, and GitHub Actions for CI/CD.
+</Info>
+
+## Root Directory Structure
+
+```
+skillrise/
+├── .github/
+│   └── workflows/
+│       ├── build.yml          # CI checks on PRs
+│       └── deploy.yml         # Docker Hub deployment
+├── client/                     # React frontend application
+├── server/                     # Express backend API
+├── docker-compose.yml          # Multi-container orchestration
+├── .gitignore
+└── README.md
+```
+
+## Client Architecture
+
+The frontend is built with React 19, Vite, and Tailwind CSS, following a feature-based organization pattern.
+
+### Client Directory Tree
+
+```
+client/
+├── src/
+│   ├── assets/                 # Static images and media
+│   ├── components/             # React components organized by feature
+│   │   ├── admin/              # Admin dashboard components
+│   │   ├── analytics/          # Time tracking & progress charts
+│   │   ├── chatbot/            # AI chat interface components
+│   │   ├── common/             # Shared layout components
+│   │   ├── community/          # Groups, posts, replies UI
+│   │   ├── educator/           # Educator-specific components
+│   │   │   └── course/         # Course builder components
+│   │   ├── quiz/               # Quiz generation & display
+│   │   ├── roadmap/            # AI roadmap visualization
+│   │   ├── shared/             # Reusable UI elements
+│   │   ├── student/            # Student-specific components
+│   │   └── ui/                 # Base UI components (buttons, cards, etc.)
+│   ├── context/
+│   │   ├── AppContext.jsx      # Global app state (user, auth)
+│   │   └── ThemeContext.jsx    # Dark/light theme provider
+│   ├── hooks/
+│   │   ├── useInView.js        # Intersection observer hook
+│   │   └── useTimeTracker.js   # Learning time tracking
+│   ├── lib/
+│   │   └── utils.js            # Helper functions
+│   ├── pages/                  # Route components
+│   │   ├── admin/              # Admin pages
+│   │   │   ├── AdminDashboard.jsx
+│   │   │   ├── AdminCourses.jsx
+│   │   │   ├── AdminUsers.jsx
+│   │   │   ├── AdminPurchases.jsx
+│   │   │   └── EducatorApplications.jsx
+│   │   ├── educator/           # Educator pages
+│   │   │   ├── Dashboard.jsx
+│   │   │   ├── AddCourse.jsx
+│   │   │   └── MyCourses.jsx
+│   │   ├── general/            # Public pages
+│   │   │   └── Landing.jsx
+│   │   └── student/            # Student pages
+│   │       ├── Home.jsx
+│   │       ├── CoursesList.jsx
+│   │       ├── CourseDetails.jsx
+│   │       ├── Player.jsx
+│   │       ├── AIChat.jsx
+│   │       ├── Roadmap.jsx
+│   │       ├── Quiz.jsx
+│   │       ├── Community.jsx
+│   │       ├── PostDetail.jsx
+│   │       ├── Analytics.jsx
+│   │       ├── MyEnrollments.jsx
+│   │       └── BecomeEducator.jsx
+│   ├── utils/                  # Utility functions
+│   ├── App.jsx                 # Root component with routing
+│   └── main.jsx                # Application entry point
+├── public/                     # Static assets served directly
+├── Dockerfile                  # Production build container
+├── nginx.conf                  # Nginx configuration for serving
+├── vite.config.js              # Vite build configuration
+├── tailwind.config.js          # Tailwind CSS configuration
+├── eslint.config.js            # ESLint rules
+├── .prettierrc                 # Prettier formatting config
+├── package.json
+└── vercel.json                 # Vercel deployment config
+```
+
+<Note>
+  The client uses feature-based organization where components are grouped by domain (admin, educator, student, community) rather than by type.
+</Note>
+
+## Server Architecture
+
+The backend follows an MVC-inspired pattern with clear separation of concerns across controllers, models, routes, and middlewares.
+
+### Server Directory Tree
+
+```
+server/
+├── configs/
+│   ├── mongodb.js              # MongoDB connection setup
+│   └── cloudinary.js           # Cloudinary media config
+├── controllers/                # Business logic handlers
+│   ├── adminController.js      # Platform stats, user management
+│   ├── chatbotController.js    # Groq AI chat integration
+│   ├── communityController.js  # Groups, posts, replies logic
+│   ├── courseController.js     # Course browsing & enrollment
+│   ├── educatorApplicationController.js
+│   ├── educatorController.js   # Course creation, dashboard
+│   ├── quizController.js       # AI quiz generation
+│   ├── roadmapController.js    # AI roadmap generation
+│   ├── timeTrackingController.js
+│   ├── userController.js       # User profile & progress
+│   └── webhooks.js             # Clerk & Stripe webhooks
+├── middlewares/
+│   └── authMiddleware.js       # Clerk auth + role guards
+├── models/                     # Mongoose schemas
+│   ├── User.js
+│   ├── Course.js
+│   ├── Purchase.js
+│   ├── CourseProgress.js
+│   ├── Quiz.js
+│   ├── QuizResult.js
+│   ├── Group.js
+│   ├── CommunityPost.js
+│   ├── Reply.js
+│   ├── TimeTracking.js
+│   ├── AiChat.js
+│   ├── Certificate.js
+│   ├── GroupMembership.js
+│   └── EducatorApplication.js
+├── routes/                     # API endpoint definitions
+│   ├── adminRoutes.js          # /api/admin/*
+│   ├── communityRoutes.js      # /api/community/*
+│   ├── courseRoute.js          # /api/course/*
+│   ├── educatorRoutes.js       # /api/educator/*
+│   ├── quizRoutes.js           # /api/quiz/*
+│   └── userRoutes.js           # /api/user/*
+├── Dockerfile                  # Production container
+├── server.js                   # Express app entry point
+├── seed.js                     # Database seeding script
+├── package.json
+├── .env.example                # Environment variable template
+└── vercel.json                 # Vercel deployment config
+```
+
+<CardGroup cols={2}>
+  <Card title="Models" icon="database">
+    14 Mongoose schemas defining the data structure for users, courses, quizzes, community features, and more.
+  </Card>
+  <Card title="Controllers" icon="code">
+    10 controller files handling business logic for admin, educator, student, and AI features.
+  </Card>
+  <Card title="Routes" icon="route">
+    6 route modules organizing API endpoints by feature domain with appropriate auth middleware.
+  </Card>
+  <Card title="Webhooks" icon="webhook">
+    Clerk user sync and Stripe payment webhooks for real-time integrations.
+  </Card>
+</CardGroup>
+
+## API Route Organization
+
+The server exposes RESTful APIs organized by feature domain:
+
+| Route Prefix | Authentication | Purpose |
+|-------------|----------------|----------|
+| `GET /` | Public | Health check endpoint |
+| `POST /clerk` | Clerk signature | User synchronization webhook |
+| `POST /stripe` | Stripe signature | Payment fulfillment webhook |
+| `/api/course` | Public | Course browsing, search, details |
+| `/api/user` | Clerk (any user) | Enrollments, progress, AI features |
+| `/api/educator` | Educator role | Course creation, analytics |
+| `/api/admin` | Admin role | Platform management |
+| `/api/community` | Clerk (any user) | Groups, posts, discussions |
+| `/api/quiz` | Clerk (any user) | Quiz generation, submissions |
+
+<Warning>
+  Admin and educator routes are protected by role-based middleware. Users must have the appropriate role in Clerk to access these endpoints.
+</Warning>
+
+## Technology Stack by Layer
+
+### Frontend Stack
+
+- **Framework**: React 19 with React DOM
+- **Build Tool**: Vite 6 for fast development and optimized builds
+- **Styling**: Tailwind CSS with custom configuration
+- **UI Components**: Radix UI primitives, Lucide icons
+- **Routing**: React Router v7
+- **State Management**: Context API (AppContext, ThemeContext)
+- **Authentication**: Clerk React SDK
+- **Payments**: Stripe embedded checkout
+- **Media Player**: React Player for video playback
+- **Markdown**: React Markdown with GitHub-flavored markdown
+- **Charts**: Recharts for analytics visualization
+- **Code Quality**: ESLint + Prettier
+
+### Backend Stack
+
+- **Runtime**: Node.js 20+
+- **Framework**: Express 5
+- **Database**: MongoDB with Mongoose ODM
+- **Authentication**: Clerk Express SDK with @clerk/express
+- **Payments**: Stripe Node SDK
+- **AI/ML**: Groq SDK for LLaMA models
+- **Media Storage**: Cloudinary for image/video uploads
+- **File Upload**: Multer middleware
+- **Security**: Helmet for headers, express-rate-limit
+- **Webhooks**: Svix for Clerk webhook verification
+- **Web Scraping**: Puppeteer for roadmap generation
+- **Validation**: Zod schemas
+- **Code Quality**: ESLint + Prettier
+
+### DevOps & Tooling
+
+- **Containerization**: Docker with multi-stage builds
+- **Orchestration**: Docker Compose for local development
+- **CI/CD**: GitHub Actions workflows
+- **Version Control**: Git with feature branch workflow
+- **Package Management**: npm with package-lock.json
+
+## Database Schema Overview
+
+SkillRise uses MongoDB with the following main collections:
+
+<AccordionGroup>
+  <Accordion title="Core Collections">
+    - **users**: User profiles, roles, enrolled courses
+    - **courses**: Course metadata, chapters, lectures, educator info
+    - **purchases**: Transaction history with Stripe payment IDs
+    - **courseProgresses**: Per-user progress tracking for each course
+  </Accordion>
+  
+  <Accordion title="Learning Features">
+    - **quizzes**: AI-generated quizzes per chapter
+    - **quizResults**: Student quiz submissions and scores
+    - **timeTrackings**: Learning session time logs
+    - **aiChats**: Chat conversation history with AI assistant
+    - **certificates**: Course completion certificates
+  </Accordion>
+  
+  <Accordion title="Community Features">
+    - **groups**: Community groups by category
+    - **groupMemberships**: User group memberships
+    - **communityPosts**: Discussion posts within groups
+    - **replies**: Threaded replies to posts
+  </Accordion>
+  
+  <Accordion title="Admin Features">
+    - **educatorApplications**: Pending educator role applications
+  </Accordion>
+</AccordionGroup>
+
+## Configuration Files
+
+### Environment Variables
+
+The project requires environment configuration in two locations:
+
+<CodeGroup>
+
+```bash server/.env
+MONGODB_URI=mongodb://localhost:27017/skillrise
+CURRENCY=INR
+
+CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+CLERK_WEBHOOK_SECRET=whsec_...
+
+CLOUDINARY_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_SECRET_KEY=your_api_secret
+
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+GROQ_CHATBOT_API_KEY=gsk_...
+GROQ_MODEL=llama-3.3-70b-versatile
+```
+
+```bash client/.env
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+VITE_BACKEND_URL=http://localhost:3000
+```
+
+</CodeGroup>
+
+<Tip>
+  Never commit `.env` files to version control. The `.gitignore` is configured to exclude them.
+</Tip>
+
+## Docker Architecture
+
+### Multi-Container Setup
+
+The `docker-compose.yml` orchestrates two services:
+
+```yaml
+services:
+  server:
+    image: pushkarverma/skillrise-server:latest
+    ports:
+      - '3000:3000'
+    env_file:
+      - ./server/.env
+    restart: unless-stopped
+
+  client:
+    image: pushkarverma/skillrise-client:latest
+    ports:
+      - '80:80'
+    depends_on:
+      - server
+    restart: unless-stopped
+```
+
+<Steps>
+  <Step title="Server Container">
+    Runs the Express API on port 3000 with environment variables loaded from `server/.env`.
+  </Step>
+  <Step title="Client Container">
+    Serves the built React app via Nginx on port 80, proxying API requests to the server container.
+  </Step>
+</Steps>
+
+## Key Design Patterns
+
+### Component Organization
+
+- **Feature-based folders**: Components grouped by domain (admin, educator, student)
+- **Shared components**: Reusable UI elements in `components/shared/` and `components/ui/`
+- **Smart vs Presentational**: Pages handle data fetching, components handle rendering
+
+### State Management
+
+- **AppContext**: Global user state, authentication status
+- **ThemeContext**: Dark/light mode preference with localStorage persistence
+- **Local state**: Component-level state with useState for UI interactions
+
+### API Design
+
+- **RESTful routes**: Resource-based endpoints with standard HTTP methods
+- **Controller pattern**: Business logic separated from route definitions
+- **Middleware chain**: Auth → Role guards → Controller → Response
+- **Error handling**: Centralized error responses with appropriate status codes
+
+### Data Flow
+
+```
+Client Component
+     ↓ (axios request)
+API Route
+     ↓ (middleware)
+Auth Middleware (Clerk verification)
+     ↓ (role check)
+Role Guard (admin/educator)
+     ↓ (business logic)
+Controller
+     ↓ (database query)
+Mongoose Model
+     ↓ (MongoDB operation)
+Database
+```
+
+## Build Output
+
+### Client Build
+
+```bash
+client/dist/
+├── index.html
+├── assets/
+│   ├── index-[hash].js    # Bundled JS with code splitting
+│   ├── index-[hash].css   # Compiled Tailwind CSS
+│   └── [images]           # Optimized images
+```
+
+### Server Build
+
+The server runs directly from source using Node.js with ES modules.
+
+<Info>
+  Production deployments use Docker images pushed to Docker Hub via GitHub Actions on every merge to `main`.
+</Info>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Contributing Guide" icon="code-pull-request" href="/development/contributing">
+    Learn how to contribute to SkillRise
+  </Card>
+  <Card title="Testing Guide" icon="flask" href="/development/testing">
+    Testing approach and commands
+  </Card>
+</CardGroup>

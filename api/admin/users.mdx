@@ -1,0 +1,118 @@
+---
+title: 'Admin Users'
+description: 'View and manage all users with enrollment and educator statistics'
+---
+
+## Get All Users
+
+<api method="GET" endpoint="/api/admin/users" />
+
+Retrieve all users with enrollment statistics, educator status, and course creation counts.
+
+### Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token with admin role required
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="users" type="array">
+  Array of users sorted by registration date (newest first)
+  <Expandable title="User object">
+    <ResponseField name="_id" type="string">
+      User unique identifier (Clerk user ID)
+    </ResponseField>
+
+    <ResponseField name="name" type="string">
+      User's full name
+    </ResponseField>
+
+    <ResponseField name="email" type="string">
+      User's email address
+    </ResponseField>
+
+    <ResponseField name="imageUrl" type="string">
+      URL to the user's profile image
+    </ResponseField>
+
+    <ResponseField name="enrolledCount" type="number">
+      Number of courses the user is enrolled in
+    </ResponseField>
+
+    <ResponseField name="coursesCreated" type="number">
+      Number of courses created by this user (if educator)
+    </ResponseField>
+
+    <ResponseField name="isEducator" type="boolean">
+      Whether the user has educator role (from Clerk public metadata)
+    </ResponseField>
+
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp when the user registered
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json Response
+{
+  "success": true,
+  "users": [
+    {
+      "_id": "user_2abc123def456",
+      "name": "John Smith",
+      "email": "john.smith@example.com",
+      "imageUrl": "https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvb2F1dGhfZ29vZ2xlL2ltZ18yYWJjMTIzZGVmNDU2In0",
+      "enrolledCount": 5,
+      "coursesCreated": 3,
+      "isEducator": true,
+      "createdAt": "2024-01-15T08:30:00.000Z"
+    },
+    {
+      "_id": "user_3xyz789ghi012",
+      "name": "Sarah Johnson",
+      "email": "sarah.j@example.com",
+      "imageUrl": "https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvb2F1dGhfZ29vZ2xlL2ltZ18zeHl6Nzg5Z2hpMDEyIn0",
+      "enrolledCount": 12,
+      "coursesCreated": 0,
+      "isEducator": false,
+      "createdAt": "2024-01-14T14:20:00.000Z"
+    },
+    {
+      "_id": "user_4mno345pqr678",
+      "name": "Michael Chen",
+      "email": "m.chen@example.com",
+      "imageUrl": "https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvb2F1dGhfZ29vZ2xlL2ltZ180bW5vMzQ1cHFyNjc4In0",
+      "enrolledCount": 3,
+      "coursesCreated": 7,
+      "isEducator": true,
+      "createdAt": "2024-01-13T11:45:00.000Z"
+    },
+    {
+      "_id": "user_5stu901vwx234",
+      "name": "Emily Davis",
+      "email": "emily.davis@example.com",
+      "imageUrl": "https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvb2F1dGhfZ29vZ2xlL2ltZ181c3R1OTAxdnd4MjM0In0",
+      "enrolledCount": 8,
+      "coursesCreated": 0,
+      "isEducator": false,
+      "createdAt": "2024-01-12T16:10:00.000Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+### Notes
+
+- Users are sorted by registration date in descending order (newest first)
+- The `isEducator` field is fetched from Clerk's public metadata
+- Regular students will have `isEducator: false` and `coursesCreated: 0`
+- The endpoint queries up to 500 users from Clerk for role metadata
+- `enrolledCount` represents active enrollments in courses
+- `coursesCreated` counts all courses created by the educator, regardless of publication status

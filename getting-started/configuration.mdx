@@ -1,0 +1,633 @@
+---
+title: Configuration
+description: Configure environment variables, API keys, and third-party service integrations for SkillRise
+---
+
+## Overview
+
+SkillRise uses environment variables to configure database connections, authentication, payments, AI services, and media uploads. This guide walks you through setting up all required configuration.
+
+<Warning>
+  **Never commit `.env` files to version control.** They contain sensitive credentials. Both `server/.env` and `client/.env` are already in `.gitignore`.
+</Warning>
+
+---
+
+## Backend Configuration
+
+### Create Server Environment File
+
+<Steps>
+  <Step title="Navigate to server directory">
+    ```bash
+    cd server
+    ```
+  </Step>
+
+  <Step title="Create .env file">
+    ```bash
+    touch .env
+    ```
+  </Step>
+
+  <Step title="Add environment variables">
+    Open `server/.env` and add the following:
+
+    ```env server/.env
+    # Database
+    MONGODB_URI=mongodb://localhost:27017
+
+    # Currency for payments (INR, USD, EUR, etc.)
+    CURRENCY=INR
+
+    # Clerk Authentication
+    CLERK_PUBLISHABLE_KEY=pk_test_...
+    CLERK_SECRET_KEY=sk_test_...
+    CLERK_WEBHOOK_SECRET=whsec_...
+
+    # Cloudinary Media Uploads
+    CLOUDINARY_NAME=your_cloud_name
+    CLOUDINARY_API_KEY=your_api_key
+    CLOUDINARY_SECRET_KEY=your_api_secret
+
+    # Razorpay Payments (for India)
+    RAZORPAY_KEY_ID=rzp_test_...
+    RAZORPAY_KEY_SECRET=your_key_secret
+    RAZORPAY_WEBHOOK_SECRET=whsec_...
+
+    # Groq AI (for chatbot and roadmap)
+    GROQ_CHATBOT_API_KEY=gsk_...
+
+    # Optional: Frontend URL (for CORS in production)
+    FRONTEND_URL=http://localhost:5173
+
+    # Optional: Server port
+    PORT=3000
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Backend Environment Variables
+
+### Database Configuration
+
+<ParamField path="MONGODB_URI" type="string" required>
+  MongoDB connection string.
+
+  <Tabs>
+    <Tab title="Local MongoDB">
+      ```env
+      MONGODB_URI=mongodb://localhost:27017
+      ```
+    </Tab>
+    <Tab title="MongoDB Atlas">
+      ```env
+      MONGODB_URI=mongodb+srv://username:password@cluster0.xxxxx.mongodb.net
+      ```
+      Replace `username`, `password`, and cluster URL with your Atlas credentials.
+    </Tab>
+  </Tabs>
+
+  <Note>
+    The database name `SkillRise` is automatically appended in `configs/mongodb.js:7`
+  </Note>
+</ParamField>
+
+<ParamField path="CURRENCY" type="string" default="INR">
+  Three-letter ISO currency code for payments (e.g., `INR`, `USD`, `EUR`).
+
+  Used in:
+  - `server/controllers/userController.js:123`
+  - `server/services/payments/razorpay.service.js:14`
+</ParamField>
+
+---
+
+### Clerk Authentication
+
+<Steps>
+  <Step title="Create a Clerk application">
+    1. Go to [dashboard.clerk.com](https://dashboard.clerk.com)
+    2. Click **Create Application**
+    3. Choose **Email** and **OAuth** providers (Google, GitHub recommended)
+    4. Click **Create Application**
+  </Step>
+
+  <Step title="Get API keys">
+    From the Clerk dashboard:
+
+    1. Go to **API Keys** in the sidebar
+    2. Copy **Publishable key** → `CLERK_PUBLISHABLE_KEY`
+    3. Copy **Secret key** → `CLERK_SECRET_KEY`
+
+    ```env
+    CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
+    CLERK_SECRET_KEY=sk_test_abcdefghijklmnopqrstuvwxyz123456
+    ```
+  </Step>
+
+  <Step title="Configure webhook (for user sync)">
+    SkillRise syncs Clerk users to MongoDB via webhooks.
+
+    1. In Clerk dashboard, go to **Webhooks** → **Add Endpoint**
+    2. Enter endpoint URL:
+       - **Local dev (with ngrok):** `https://your-ngrok-url.ngrok.app/clerk`
+       - **Production:** `https://api.yourapp.com/clerk`
+    3. Select events: `user.created`, `user.updated`, `user.deleted`
+    4. Click **Create**
+    5. Copy **Signing Secret** → `CLERK_WEBHOOK_SECRET`
+
+    ```env
+    CLERK_WEBHOOK_SECRET=whsec_abcdefghijklmnopqrstuvwxyz123456
+    ```
+
+    <Accordion title="Local development with ngrok">
+      To test webhooks locally:
+
+      ```bash
+      # Install ngrok
+      npm install -g ngrok
+
+      # Start your server
+      npm run server
+
+      # In another terminal, create tunnel to port 3000
+      ngrok http 3000
+
+      # Copy the HTTPS URL (e.g., https://abc123.ngrok.app)
+      # Use this URL + /clerk in Clerk webhook settings
+      ```
+    </Accordion>
+  </Step>
+</Steps>
+
+<ParamField path="CLERK_PUBLISHABLE_KEY" type="string" required>
+  Public API key for Clerk. Starts with `pk_test_` (test) or `pk_live_` (production).
+</ParamField>
+
+<ParamField path="CLERK_SECRET_KEY" type="string" required>
+  Secret API key for Clerk. Starts with `sk_test_` or `sk_live_`.
+
+  <Warning>
+    Keep this secret. Never expose in client-side code.
+  </Warning>
+</ParamField>
+
+<ParamField path="CLERK_WEBHOOK_SECRET" type="string" required>
+  Signing secret for verifying webhook requests from Clerk. Starts with `whsec_`.
+
+  Used in `server/controllers/webhooks.js` to verify request authenticity.
+</ParamField>
+
+---
+
+### Cloudinary (Media Uploads)
+
+<Steps>
+  <Step title="Create Cloudinary account">
+    1. Go to [cloudinary.com/users/register_free](https://cloudinary.com/users/register_free)
+    2. Sign up for a free account (25 GB storage, 25 GB bandwidth/month)
+  </Step>
+
+  <Step title="Get credentials">
+    From the Cloudinary dashboard:
+
+    1. Go to **Dashboard** (home page)
+    2. Find **Account Details** section
+    3. Copy:
+       - **Cloud Name** → `CLOUDINARY_NAME`
+       - **API Key** → `CLOUDINARY_API_KEY`
+       - **API Secret** → `CLOUDINARY_SECRET_KEY`
+
+    ```env
+    CLOUDINARY_NAME=dxyz123abc
+    CLOUDINARY_API_KEY=123456789012345
+    CLOUDINARY_SECRET_KEY=abcdefghijklmnopqrstuvwxyz12
+    ```
+  </Step>
+</Steps>
+
+<ParamField path="CLOUDINARY_NAME" type="string" required>
+  Your Cloudinary cloud name (found on dashboard).
+</ParamField>
+
+<ParamField path="CLOUDINARY_API_KEY" type="string" required>
+  API key for Cloudinary uploads.
+</ParamField>
+
+<ParamField path="CLOUDINARY_SECRET_KEY" type="string" required>
+  API secret for signing Cloudinary requests.
+
+  Used in `server/configs/cloudinary.js:6` to configure the Cloudinary SDK.
+</ParamField>
+
+---
+
+### Razorpay (Payment Processing)
+
+<Note>
+  **For international users:** Replace Razorpay with Stripe. See [Payment Integration Guide](/advanced/payment-integration) for Stripe setup.
+</Note>
+
+<Steps>
+  <Step title="Create Razorpay account">
+    1. Go to [dashboard.razorpay.com/signup](https://dashboard.razorpay.com/signup)
+    2. Sign up (requires Indian phone number and business details)
+    3. Complete KYC verification
+  </Step>
+
+  <Step title="Get API keys">
+    From Razorpay dashboard:
+
+    1. Go to **Settings** → **API Keys**
+    2. Click **Generate Test Key** (for development)
+    3. Copy:
+       - **Key ID** → `RAZORPAY_KEY_ID`
+       - **Key Secret** → `RAZORPAY_KEY_SECRET`
+
+    ```env
+    RAZORPAY_KEY_ID=rzp_test_ABC123XYZ456
+    RAZORPAY_KEY_SECRET=your_key_secret_here
+    ```
+
+    <Warning>
+      Use **Test Mode** keys for development. Switch to **Live Mode** for production only after completing KYC.
+    </Warning>
+  </Step>
+
+  <Step title="Configure webhook">
+    1. Go to **Settings** → **Webhooks**
+    2. Click **Add New Webhook**
+    3. Enter webhook URL:
+       - Local: `https://your-ngrok-url.ngrok.app/razorpay`
+       - Production: `https://api.yourapp.com/razorpay`
+    4. Select events: `payment.captured`, `payment.failed`
+    5. Copy **Secret** → `RAZORPAY_WEBHOOK_SECRET`
+
+    ```env
+    RAZORPAY_WEBHOOK_SECRET=whsec_razorpay_secret_key
+    ```
+  </Step>
+</Steps>
+
+<ParamField path="RAZORPAY_KEY_ID" type="string" required>
+  Razorpay API Key ID (starts with `rzp_test_` or `rzp_live_`).
+
+  Used in:
+  - `server/services/payments/razorpay.service.js:11`
+  - `server/services/payments/razorpay.service.js:33`
+</ParamField>
+
+<ParamField path="RAZORPAY_KEY_SECRET" type="string" required>
+  Razorpay API Key Secret for server-side requests.
+</ParamField>
+
+<ParamField path="RAZORPAY_WEBHOOK_SECRET" type="string" required>
+  Signing secret to verify webhook requests from Razorpay.
+
+  Used in `server/controllers/webhooks.js:45` to validate payment notifications.
+</ParamField>
+
+---
+
+### Groq AI (Chatbot & Roadmap)
+
+<Steps>
+  <Step title="Get Groq API key">
+    1. Go to [console.groq.com](https://console.groq.com)
+    2. Sign in with Google or GitHub
+    3. Click **API Keys** in sidebar
+    4. Click **Create API Key**
+    5. Copy the key (starts with `gsk_`)
+
+    ```env
+    GROQ_CHATBOT_API_KEY=gsk_abcdefghijklmnopqrstuvwxyz1234567890
+    ```
+  </Step>
+</Steps>
+
+<ParamField path="GROQ_CHATBOT_API_KEY" type="string" required>
+  Groq API key for AI chat and roadmap generation.
+
+  Used in:
+  - `server/services/chatbot/aiChatbotService.js:3` - AI chatbot
+  - Quiz generation
+  - Learning roadmap generation
+
+  <Info>
+    SkillRise uses the `openai/gpt-oss-120b` model by default. Groq offers generous free tier limits.
+  </Info>
+</ParamField>
+
+---
+
+### Optional Variables
+
+<ParamField path="FRONTEND_URL" type="string" default="http://localhost:5173">
+  Frontend URL for CORS configuration.
+
+  ```env
+  # Development
+  FRONTEND_URL=http://localhost:5173
+
+  # Production
+  FRONTEND_URL=https://skillrise.com
+  ```
+
+  Used in `server/server.js:29` to configure CORS policy.
+
+  <Warning>
+    Required in production. Without this, API requests from the frontend will be blocked.
+  </Warning>
+</ParamField>
+
+<ParamField path="PORT" type="number" default="3000">
+  Port for the Express server.
+
+  ```env
+  PORT=3000
+  ```
+
+  Used in `server/server.js:123` to start the HTTP server.
+</ParamField>
+
+<ParamField path="NODE_ENV" type="string" default="development">
+  Node environment mode.
+
+  ```env
+  NODE_ENV=production
+  ```
+
+  - `development` - Enables verbose logging
+  - `production` - Enforces `FRONTEND_URL` requirement
+</ParamField>
+
+---
+
+## Frontend Configuration
+
+### Create Client Environment File
+
+<Steps>
+  <Step title="Navigate to client directory">
+    ```bash
+    cd client
+    ```
+  </Step>
+
+  <Step title="Create .env file">
+    ```bash
+    touch .env
+    ```
+  </Step>
+
+  <Step title="Add environment variables">
+    Open `client/.env` and add:
+
+    ```env client/.env
+    # Clerk Authentication (public key)
+    VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+
+    # Backend API URL
+    VITE_BACKEND_URL=http://localhost:3000
+
+    # Razorpay public key (optional - only if using Razorpay checkout)
+    VITE_RAZORPAY_KEY_ID=rzp_test_...
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Frontend Environment Variables
+
+<ParamField path="VITE_CLERK_PUBLISHABLE_KEY" type="string" required>
+  Clerk publishable key (same as backend `CLERK_PUBLISHABLE_KEY`).
+
+  ```env
+  VITE_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
+  ```
+
+  Used in:
+  - `client/src/main.jsx:6` - Initialize ClerkProvider
+  - `client/src/context/AppContext.jsx` - Auth state
+
+  <Note>
+    The `VITE_` prefix is required for Vite to expose the variable to client code.
+  </Note>
+</ParamField>
+
+<ParamField path="VITE_BACKEND_URL" type="string" required>
+  Base URL for API requests.
+
+  ```env
+  # Development
+  VITE_BACKEND_URL=http://localhost:3000
+
+  # Production
+  VITE_BACKEND_URL=https://api.skillrise.com
+  ```
+
+  Used in:
+  - `client/src/context/AppContext.jsx:23` - Axios instance base URL
+  - `client/src/hooks/useTimeTracker.js:12` - Analytics tracking
+</ParamField>
+
+<ParamField path="VITE_RAZORPAY_KEY_ID" type="string" optional>
+  Razorpay public key ID for client-side checkout (if using Razorpay).
+
+  ```env
+  VITE_RAZORPAY_KEY_ID=rzp_test_ABC123XYZ456
+  ```
+
+  <Info>
+    Only required if you're implementing Razorpay embedded checkout in the frontend.
+  </Info>
+</ParamField>
+
+---
+
+## Verify Configuration
+
+Before running the application, verify your configuration:
+
+<CodeGroup>
+```bash Server
+cd server
+
+# Check .env file exists
+ls -la .env
+
+# Verify environment variables are loaded
+node -e "require('dotenv').config(); console.log('MONGODB_URI:', process.env.MONGODB_URI ? '✓ Set' : '✗ Missing')"
+```
+
+```bash Client
+cd client
+
+# Check .env file exists
+ls -la .env
+
+# Print Vite env variables (safe - only shows VITE_ prefixed vars)
+npm run dev -- --help 2>&1 | head -5
+```
+</CodeGroup>
+
+---
+
+## Configuration Checklist
+
+<Steps>
+  <Step title="Backend environment">
+    <Accordion title="Verify server/.env">
+      - [x] `MONGODB_URI` - Database connection string
+      - [x] `CLERK_PUBLISHABLE_KEY` - Clerk public key
+      - [x] `CLERK_SECRET_KEY` - Clerk secret key
+      - [x] `CLERK_WEBHOOK_SECRET` - Clerk webhook secret
+      - [x] `CLOUDINARY_NAME` - Cloudinary cloud name
+      - [x] `CLOUDINARY_API_KEY` - Cloudinary API key
+      - [x] `CLOUDINARY_SECRET_KEY` - Cloudinary API secret
+      - [x] `RAZORPAY_KEY_ID` - Razorpay key ID
+      - [x] `RAZORPAY_KEY_SECRET` - Razorpay key secret
+      - [x] `RAZORPAY_WEBHOOK_SECRET` - Razorpay webhook secret
+      - [x] `GROQ_CHATBOT_API_KEY` - Groq API key
+    </Accordion>
+  </Step>
+
+  <Step title="Frontend environment">
+    <Accordion title="Verify client/.env">
+      - [x] `VITE_CLERK_PUBLISHABLE_KEY` - Clerk public key
+      - [x] `VITE_BACKEND_URL` - Backend API URL
+    </Accordion>
+  </Step>
+
+  <Step title="External services configured">
+    - [x] Clerk webhook endpoint created
+    - [x] Razorpay webhook endpoint created
+    - [x] MongoDB database accessible
+    - [x] Cloudinary account active
+  </Step>
+</Steps>
+
+<Check>
+  **Configuration complete!** Proceed to [run the application](#next-steps) or set up [Docker](/getting-started/docker-setup).
+</Check>
+
+---
+
+## Environment Variable Reference
+
+<Accordion title="Complete .env template (server)">
+```env server/.env
+# ─── Database ─────────────────────────────────────────────────────────────────
+MONGODB_URI=mongodb://localhost:27017
+CURRENCY=INR
+
+# ─── Authentication ───────────────────────────────────────────────────────────
+CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+CLERK_WEBHOOK_SECRET=whsec_...
+
+# ─── Media Uploads ────────────────────────────────────────────────────────────
+CLOUDINARY_NAME=your_cloud_name
+CLOUDINARY_API_KEY=123456789012345
+CLOUDINARY_SECRET_KEY=your_api_secret
+
+# ─── Payments ─────────────────────────────────────────────────────────────────
+RAZORPAY_KEY_ID=rzp_test_...
+RAZORPAY_KEY_SECRET=your_key_secret
+RAZORPAY_WEBHOOK_SECRET=whsec_...
+
+# ─── AI Services ──────────────────────────────────────────────────────────────
+GROQ_CHATBOT_API_KEY=gsk_...
+
+# ─── Optional ─────────────────────────────────────────────────────────────────
+FRONTEND_URL=http://localhost:5173
+PORT=3000
+NODE_ENV=development
+```
+</Accordion>
+
+<Accordion title="Complete .env template (client)">
+```env client/.env
+# ─── Authentication ───────────────────────────────────────────────────────────
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+
+# ─── API ──────────────────────────────────────────────────────────────────────
+VITE_BACKEND_URL=http://localhost:3000
+
+# ─── Payments (optional) ──────────────────────────────────────────────────────
+VITE_RAZORPAY_KEY_ID=rzp_test_...
+```
+</Accordion>
+
+---
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Environment variables not loading">
+    **Symptom:** `undefined` when accessing `process.env.VARIABLE_NAME`
+
+    **Solutions:**
+    1. Verify `.env` file exists in the correct directory (`server/` or `client/`)
+    2. Restart the dev server after changing `.env`
+    3. For Vite (client), ensure variables start with `VITE_`
+    4. Check for typos in variable names (they're case-sensitive)
+  </Accordion>
+
+  <Accordion title="CORS errors when calling API">
+    **Error:** `Access to XMLHttpRequest at 'http://localhost:3000/api/...' from origin 'http://localhost:5173' has been blocked by CORS policy`
+
+    **Solutions:**
+    1. Set `FRONTEND_URL=http://localhost:5173` in `server/.env`
+    2. Verify `VITE_BACKEND_URL=http://localhost:3000` in `client/.env`
+    3. Restart both servers
+  </Accordion>
+
+  <Accordion title="Clerk authentication not working">
+    **Symptom:** Login redirects to 404 or fails silently
+
+    **Solutions:**
+    1. Verify `CLERK_PUBLISHABLE_KEY` matches in both `server/.env` and `client/.env` (as `VITE_CLERK_PUBLISHABLE_KEY`)
+    2. Check Clerk dashboard → **API Keys** → ensure you're using keys from the correct application
+    3. Clear browser cookies and localStorage, then try again
+  </Accordion>
+
+  <Accordion title="MongoDB connection failed">
+    **Error:** `MongoServerError: Authentication failed`
+
+    **Solutions:**
+    1. Verify `MONGODB_URI` is correct
+    2. For Atlas: ensure your IP is whitelisted in Network Access
+    3. For Atlas: verify database user credentials are correct
+    4. For local: ensure MongoDB is running (`brew services list` or `sudo systemctl status mongod`)
+  </Accordion>
+
+  <Accordion title="Cloudinary uploads failing">
+    **Error:** `Invalid API key`
+
+    **Solutions:**
+    1. Go to Cloudinary dashboard → verify cloud name, API key, and secret
+    2. Ensure no extra spaces in `.env` values
+    3. Restart the server after updating `.env`
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Run Locally" icon="terminal" href="/getting-started/running-locally">
+    Start development servers
+  </Card>
+  <Card title="Docker Setup" icon="docker" href="/getting-started/docker-setup">
+    Run with Docker Compose
+  </Card>
+  <Card title="Seed Data" icon="database" href="/getting-started/seeding-data">
+    Populate with demo data
+  </Card>
+</CardGroup>

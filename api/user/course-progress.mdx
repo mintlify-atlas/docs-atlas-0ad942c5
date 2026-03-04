@@ -1,0 +1,279 @@
+---
+title: "Course Progress"
+description: "Track and retrieve user progress for enrolled courses"
+---
+
+This page documents two related endpoints for managing course progress:
+
+1. Update course progress (mark lectures as completed)
+2. Get current course progress
+
+---
+
+## Update Course Progress
+
+<api>POST /api/user/update-course-progress</api>
+
+Mark a lecture as completed and update the user's course progress. Automatically generates a certificate when course is completed.
+
+### Authentication
+
+Requires authentication via Clerk. The `userId` is automatically extracted from the authentication token.
+
+### Request Body
+
+<ParamField body="courseId" type="string" required>
+  The unique identifier of the course
+</ParamField>
+
+<ParamField body="lectureId" type="string" required>
+  The unique identifier of the lecture to mark as completed
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates whether the request was successful
+</ResponseField>
+
+<ResponseField name="message" type="string" required>
+  Status message (e.g., "Progress Updated")
+</ResponseField>
+
+<ResponseField name="isCourseCompleted" type="boolean" required>
+  True if all lectures in the course are now completed
+</ResponseField>
+
+<ResponseField name="certificateAvailable" type="boolean" required>
+  True if a certificate has been generated and is available for download
+</ResponseField>
+
+### Request Example
+
+<RequestExample>
+```json Request
+{
+  "courseId": "60d5ec49f1b2c72b8c8e4f1a",
+  "lectureId": "lecture_ch1_vid3"
+}
+```
+</RequestExample>
+
+### Response Examples
+
+<ResponseExample>
+```json Progress Updated
+{
+  "success": true,
+  "message": "Progress Updated",
+  "isCourseCompleted": false,
+  "certificateAvailable": false
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Course Completed with Certificate
+{
+  "success": true,
+  "message": "Progress Updated",
+  "isCourseCompleted": true,
+  "certificateAvailable": true
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Invalid Request
+{
+  "success": false,
+  "message": "Invalid request data"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Course Not Found
+{
+  "success": false,
+  "message": "Course not found"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Not Enrolled
+{
+  "success": false,
+  "message": "Course not purchased"
+}
+```
+</ResponseExample>
+
+### Error Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Success |
+| 400 | Invalid request data |
+| 401 | Unauthorized - Invalid or missing authentication token |
+| 403 | Course not purchased |
+| 404 | Course not found |
+| 500 | Internal server error |
+
+### Behavior Notes
+
+- Uses `$addToSet` to prevent duplicate lecture completions
+- Creates a `CourseProgress` document if it doesn't exist (upsert)
+- Automatically marks course as completed when all lectures are finished
+- Generates a certificate PDF and uploads to Cloudinary when course is completed
+- Certificate includes QR code for verification
+
+### Validation Schema
+
+```javascript
+{
+  courseId: z.string().min(1),
+  lectureId: z.string().min(1)
+}
+```
+
+---
+
+## Get Course Progress
+
+<api>POST /api/user/get-course-progress</api>
+
+Retrieve the user's progress for a specific course.
+
+### Authentication
+
+Requires authentication via Clerk. The `userId` is automatically extracted from the authentication token.
+
+### Request Body
+
+<ParamField body="courseId" type="string" required>
+  The unique identifier of the course
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates whether the request was successful
+</ResponseField>
+
+<ResponseField name="progressData" type="object | null">
+  Course progress data or null if no progress exists
+  
+  <Expandable title="progressData properties">
+    <ResponseField name="_id" type="string">
+      Progress record unique identifier
+    </ResponseField>
+    
+    <ResponseField name="userId" type="string">
+      User's unique identifier
+    </ResponseField>
+    
+    <ResponseField name="courseId" type="string">
+      Course unique identifier
+    </ResponseField>
+    
+    <ResponseField name="lectureCompleted" type="array">
+      Array of completed lecture IDs
+    </ResponseField>
+    
+    <ResponseField name="completed" type="boolean">
+      True if the entire course is completed
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp when progress tracking started
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="string">
+      ISO 8601 timestamp of last progress update
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message if success is false
+</ResponseField>
+
+### Request Example
+
+<RequestExample>
+```json Request
+{
+  "courseId": "60d5ec49f1b2c72b8c8e4f1a"
+}
+```
+</RequestExample>
+
+### Response Examples
+
+<ResponseExample>
+```json With Progress
+{
+  "success": true,
+  "progressData": {
+    "_id": "65f1a2b3c4d5e6f7g8h9i0j1",
+    "userId": "user_2abc123def456",
+    "courseId": "60d5ec49f1b2c72b8c8e4f1a",
+    "lectureCompleted": [
+      "lecture_ch1_vid1",
+      "lecture_ch1_vid2",
+      "lecture_ch1_vid3",
+      "lecture_ch2_vid1"
+    ],
+    "completed": false,
+    "createdAt": "2024-03-15T10:30:00.000Z",
+    "updatedAt": "2024-03-20T14:45:00.000Z"
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json No Progress
+{
+  "success": true,
+  "progressData": null
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Invalid Request
+{
+  "success": false,
+  "message": "Invalid request data"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error Response
+{
+  "success": false,
+  "message": "An unexpected error occurred"
+}
+```
+</ResponseExample>
+
+### Error Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Success |
+| 400 | Invalid request data |
+| 401 | Unauthorized - Invalid or missing authentication token |
+| 500 | Internal server error |
+
+### Validation Schema
+
+```javascript
+{
+  courseId: z.string().min(1)
+}
+```

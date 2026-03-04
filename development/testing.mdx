@@ -1,0 +1,636 @@
+---
+title: 'Testing Guide'
+description: 'Testing approach, strategies, and quality assurance for SkillRise'
+icon: 'flask'
+---
+
+## Overview
+
+SkillRise emphasizes code quality and reliability through a combination of automated testing, continuous integration checks, and manual testing procedures.
+
+<Info>
+  While SkillRise currently uses CI/CD for linting and build verification, this guide outlines testing strategies and best practices for ensuring application quality.
+</Info>
+
+## Current Testing Strategy
+
+### Automated CI/CD Checks
+
+Every pull request to `main` or `dev` branches triggers automated quality checks:
+
+<CardGroup cols={2}>
+  <Card title="Code Linting" icon="magnifying-glass">
+    ESLint validates code quality and catches potential bugs for both client and server
+  </Card>
+  <Card title="Code Formatting" icon="align-left">
+    Prettier ensures consistent code formatting across the entire codebase
+  </Card>
+  <Card title="Build Verification" icon="hammer">
+    Vite builds the client to ensure no compilation errors exist
+  </Card>
+  <Card title="Dependency Check" icon="box">
+    Verifies all dependencies install correctly with `npm ci`
+  </Card>
+</CardGroup>
+
+## CI/CD Pipeline
+
+### Build Workflow
+
+Triggered on pull requests to `main` or `dev` branches:
+
+<Tabs>
+  <Tab title="Client Job">
+    ```yaml
+    name: Lint, Format & Build Client
+    runs-on: ubuntu-latest
+    
+    steps:
+      - Checkout code
+      - Setup Node.js 20
+      - Install dependencies (npm ci)
+      - Run ESLint (npm run lint)
+      - Check Prettier (npm run format:check)
+      - Build app (npm run build)
+    ```
+    
+    **What it validates:**
+    - No ESLint errors or warnings
+    - Code follows Prettier formatting rules
+    - Vite successfully builds production bundle
+    - All imports and dependencies resolve correctly
+  </Tab>
+  
+  <Tab title="Server Job">
+    ```yaml
+    name: Lint & Format Check Server
+    runs-on: ubuntu-latest
+    
+    steps:
+      - Checkout code
+      - Setup Node.js 20
+      - Install dependencies (npm ci)
+      - Run ESLint (npm run lint)
+      - Check Prettier (npm run format:check)
+    ```
+    
+    **What it validates:**
+    - No ESLint errors or warnings
+    - Code follows Prettier formatting rules
+    - All dependencies install without errors
+  </Tab>
+</Tabs>
+
+<Warning>
+  Pull requests cannot be merged if any CI check fails. All issues must be resolved before requesting review.
+</Warning>
+
+### Deploy Workflow
+
+Triggered on push to `main` branch:
+
+<Steps>
+  <Step title="Build Server Image">
+    - Builds Docker image from `server/Dockerfile`
+    - Tags as `pushkarverma/skillrise-server:latest`
+    - Pushes to Docker Hub
+  </Step>
+  
+  <Step title="Build Client Image">
+    - Builds Docker image from `client/Dockerfile`
+    - Injects build-time environment variables
+    - Tags as `pushkarverma/skillrise-client:latest`
+    - Pushes to Docker Hub
+  </Step>
+</Steps>
+
+## Running Quality Checks Locally
+
+### Client Checks
+
+<CodeGroup>
+
+```bash Linting
+cd client
+
+# Check for linting errors
+npm run lint
+
+# Automatically fix fixable issues
+npm run lint:fix
+```
+
+```bash Formatting
+cd client
+
+# Check if code is formatted correctly
+npm run format:check
+
+# Format all files
+npm run format
+```
+
+```bash Build
+cd client
+
+# Build production bundle
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+</CodeGroup>
+
+### Server Checks
+
+<CodeGroup>
+
+```bash Linting
+cd server
+
+# Check for linting errors
+npm run lint
+
+# Automatically fix fixable issues
+npm run lint:fix
+```
+
+```bash Formatting
+cd server
+
+# Check if code is formatted correctly
+npm run format:check
+
+# Format all files
+npm run format
+```
+
+</CodeGroup>
+
+<Tip>
+  Run these commands before committing to catch issues early and avoid CI failures.
+</Tip>
+
+## Manual Testing Procedures
+
+### Local Development Testing
+
+Before submitting a pull request, manually test your changes:
+
+<Checklist>
+  - [ ] Start both client and server in development mode
+  - [ ] Test the feature/fix in the browser
+  - [ ] Check browser console for errors or warnings
+  - [ ] Test on different screen sizes (mobile, tablet, desktop)
+  - [ ] Test with dark mode and light mode
+  - [ ] Verify API requests complete successfully
+  - [ ] Check Network tab for failed requests
+  - [ ] Test error scenarios and edge cases
+</Checklist>
+
+### Feature Testing Checklist
+
+When adding or modifying features, test the full user flow:
+
+<AccordionGroup>
+  <Accordion title="Authentication Features">
+    - Sign up with valid credentials
+    - Sign in with existing account
+    - Sign out successfully
+    - Test protected routes redirect correctly
+    - Verify role-based access (student, educator, admin)
+    - Check session persistence across page refreshes
+  </Accordion>
+  
+  <Accordion title="Course Features">
+    - Browse course catalog
+    - Search and filter courses
+    - View course details
+    - Enroll in a course (with Stripe test cards)
+    - Track course progress
+    - Complete chapters and lectures
+    - Test video player functionality
+  </Accordion>
+  
+  <Accordion title="Educator Features">
+    - Apply to become an educator
+    - Create a new course
+    - Add chapters and lectures
+    - Upload thumbnails and content
+    - Publish/unpublish courses
+    - View dashboard analytics
+    - See enrolled students
+  </Accordion>
+  
+  <Accordion title="AI Features">
+    - Chat with AI assistant
+    - Generate personalized roadmap
+    - Generate chapter quizzes
+    - Take quiz and submit answers
+    - View quiz results and explanations
+  </Accordion>
+  
+  <Accordion title="Community Features">
+    - Browse community groups
+    - Join and leave groups
+    - Create discussion posts
+    - Reply to posts
+    - Upvote posts and replies
+    - View threaded conversations
+  </Accordion>
+  
+  <Accordion title="Admin Features">
+    - View platform dashboard
+    - Check analytics charts
+    - Review all courses
+    - Manage users
+    - View purchase history
+    - Approve/reject educator applications
+  </Accordion>
+</AccordionGroup>
+
+## Testing Environment Setup
+
+### Test Data with Database Seeder
+
+Use the seeder script to populate your database with realistic test data:
+
+```bash
+cd server
+npm run seed
+```
+
+**What gets created:**
+
+<Tabs>
+  <Tab title="Users">
+    - 5 educators with complete profiles
+    - 5 students with enrolled courses
+    - Different roles for testing permissions
+  </Tab>
+  
+  <Tab title="Courses">
+    - 5 courses across different categories
+    - Multiple chapters per course
+    - Multiple lectures per chapter
+    - Realistic descriptions and metadata
+  </Tab>
+  
+  <Tab title="Community">
+    - Multiple community groups
+    - Discussion posts within groups
+    - Threaded replies
+    - Upvote data
+  </Tab>
+  
+  <Tab title="Learning Data">
+    - Enrollment records
+    - Course progress tracking
+    - Quiz data
+    - Sample purchase history
+  </Tab>
+</Tabs>
+
+<Note>
+  The seeder is safe to re-run - it clears existing seeded data before creating new records.
+</Note>
+
+### Test Payment Cards (Stripe)
+
+Use Stripe test cards for payment testing:
+
+| Card Number | Scenario | CVC | Date |
+|-------------|----------|-----|------|
+| `4242 4242 4242 4242` | Successful payment | Any 3 digits | Any future date |
+| `4000 0000 0000 9995` | Insufficient funds | Any 3 digits | Any future date |
+| `4000 0000 0000 0002` | Card declined | Any 3 digits | Any future date |
+| `4000 0025 0000 3155` | 3D Secure required | Any 3 digits | Any future date |
+
+### Webhook Testing
+
+For testing webhooks locally:
+
+<Steps>
+  <Step title="Install ngrok">
+    ```bash
+    npm install -g ngrok
+    ```
+  </Step>
+  
+  <Step title="Start ngrok tunnel">
+    ```bash
+    ngrok http 3000
+    ```
+    Copy the HTTPS forwarding URL (e.g., `https://abc123.ngrok.io`)
+  </Step>
+  
+  <Step title="Configure webhooks">
+    **Clerk Dashboard:**
+    - Go to Webhooks section
+    - Add endpoint: `https://abc123.ngrok.io/clerk`
+    - Subscribe to `user.created` and `user.updated` events
+    
+    **Stripe Dashboard:**
+    - Go to Developers → Webhooks
+    - Add endpoint: `https://abc123.ngrok.io/stripe`
+    - Subscribe to `checkout.session.completed` event
+  </Step>
+  
+  <Step title="Test webhook delivery">
+    Perform actions that trigger webhooks (sign up, make payment) and verify logs
+  </Step>
+</Steps>
+
+## Browser Testing
+
+### Recommended Browsers
+
+Test on multiple browsers to ensure compatibility:
+
+<CardGroup cols={3}>
+  <Card title="Chrome" icon="chrome">
+    Latest version - primary development browser
+  </Card>
+  <Card title="Firefox" icon="firefox">
+    Latest version - good for dev tools
+  </Card>
+  <Card title="Safari" icon="safari">
+    Latest version - test on macOS/iOS
+  </Card>
+</CardGroup>
+
+### Responsive Testing
+
+Test the following viewport sizes:
+
+| Device | Width | Test Focus |
+|--------|-------|------------|
+| Mobile | 375px | Navigation, touch interactions, mobile menu |
+| Tablet | 768px | Layout transitions, sidebar behavior |
+| Desktop | 1440px | Full layout, multi-column displays |
+| Large | 1920px | Max-width constraints, spacing |
+
+<Tip>
+  Use Chrome DevTools' device toolbar (Cmd/Ctrl + Shift + M) for quick responsive testing.
+</Tip>
+
+## API Testing
+
+### Testing with curl
+
+<CodeGroup>
+
+```bash Health Check
+curl http://localhost:3000/
+```
+
+```bash Get All Courses
+curl http://localhost:3000/api/course
+```
+
+```bash Get Course by ID
+curl http://localhost:3000/api/course/COURSE_ID
+```
+
+```bash Authenticated Request
+curl -H "Authorization: Bearer YOUR_CLERK_TOKEN" \
+     http://localhost:3000/api/user/enrollments
+```
+
+</CodeGroup>
+
+### Testing with Postman
+
+<Steps>
+  <Step title="Import API Collection">
+    Create a Postman collection for SkillRise endpoints
+  </Step>
+  
+  <Step title="Set Environment Variables">
+    - `BASE_URL`: `http://localhost:3000`
+    - `CLERK_TOKEN`: Your Clerk session token
+  </Step>
+  
+  <Step title="Test Endpoints">
+    Test each API route with different scenarios (success, error, edge cases)
+  </Step>
+</Steps>
+
+## Debugging Techniques
+
+### Client-Side Debugging
+
+<Tabs>
+  <Tab title="Browser DevTools">
+    **Console:**
+    ```javascript
+    console.log('User data:', user)
+    console.error('API error:', error)
+    console.table(courses)
+    ```
+    
+    **Debugger:**
+    ```javascript
+    debugger; // Execution pauses here
+    ```
+    
+    **React DevTools:**
+    - Install React DevTools extension
+    - Inspect component props and state
+    - Profile component renders
+  </Tab>
+  
+  <Tab title="Network Inspection">
+    - Open Network tab in DevTools
+    - Filter by XHR/Fetch to see API calls
+    - Check request/response headers
+    - Verify payload data
+    - Monitor response times
+  </Tab>
+  
+  <Tab title="Vite Error Overlay">
+    Development mode shows errors directly in browser:
+    - Syntax errors
+    - Runtime errors
+    - Component errors with stack traces
+  </Tab>
+</Tabs>
+
+### Server-Side Debugging
+
+<CodeGroup>
+
+```javascript Console Logging
+// Add logging to controllers
+console.log('Request body:', req.body)
+console.log('User from Clerk:', req.auth.userId)
+console.error('Database error:', error)
+```
+
+```javascript Node Debugger
+# Start server in debug mode
+node --inspect server.js
+
+# Or with nodemon
+nodemon --inspect server.js
+
+# Then connect Chrome DevTools to node process
+# Open chrome://inspect
+```
+
+```javascript Environment Check
+// Verify environment variables
+console.log('MongoDB URI:', process.env.MONGODB_URI)
+console.log('Clerk Secret exists:', !!process.env.CLERK_SECRET_KEY)
+```
+
+</CodeGroup>
+
+## Common Issues and Solutions
+
+<AccordionGroup>
+  <Accordion title="CORS errors in browser">
+    **Problem:** API requests blocked by CORS policy
+    
+    **Solution:**
+    - Verify `VITE_BACKEND_URL` points to `http://localhost:3000`
+    - Check server CORS configuration includes frontend origin
+    - Ensure credentials are included in requests if needed
+  </Accordion>
+  
+  <Accordion title="Authentication fails">
+    **Problem:** User not authenticated despite signing in
+    
+    **Solution:**
+    - Verify Clerk publishable keys match in both `.env` files
+    - Check browser console for Clerk errors
+    - Clear browser cookies and local storage
+    - Ensure webhook is configured if testing user sync
+  </Accordion>
+  
+  <Accordion title="Payment webhook not received">
+    **Problem:** Purchases not completing after Stripe checkout
+    
+    **Solution:**
+    - Verify ngrok tunnel is running
+    - Check Stripe webhook endpoint URL is correct
+    - Verify webhook secret in `server/.env`
+    - Check server logs for webhook errors
+    - Test webhook using Stripe CLI: `stripe listen --forward-to localhost:3000/stripe`
+  </Accordion>
+  
+  <Accordion title="Database connection fails">
+    **Problem:** Server won't start due to MongoDB connection error
+    
+    **Solution:**
+    - Verify MongoDB is running: `mongosh`
+    - Check `MONGODB_URI` in `server/.env`
+    - Ensure database name in URI is correct
+    - For Atlas: verify IP whitelist and credentials
+  </Accordion>
+  
+  <Accordion title="Build fails with environment variable errors">
+    **Problem:** Client build fails with undefined env variables
+    
+    **Solution:**
+    - Ensure all `VITE_*` variables are defined in `client/.env`
+    - For CI/CD: verify GitHub Secrets are configured
+    - Variables must be prefixed with `VITE_` to be accessible in client
+  </Accordion>
+</AccordionGroup>
+
+## Performance Testing
+
+### Lighthouse Audits
+
+Run Lighthouse audits to check performance, accessibility, and SEO:
+
+<Steps>
+  <Step title="Open Chrome DevTools">
+    Press F12 or Cmd/Ctrl + Shift + I
+  </Step>
+  
+  <Step title="Navigate to Lighthouse tab">
+    If not visible, click the >> icon and select Lighthouse
+  </Step>
+  
+  <Step title="Run audit">
+    Select categories and click "Analyze page load"
+  </Step>
+  
+  <Step title="Review results">
+    Focus on:
+    - Performance score
+    - Accessibility issues
+    - Best practices violations
+    - SEO recommendations
+  </Step>
+</Steps>
+
+### Load Testing (Optional)
+
+For testing API performance under load:
+
+```bash
+# Install Apache Bench
+apt-get install apache2-utils  # Linux
+brew install httpd             # macOS
+
+# Test endpoint with 100 requests, 10 concurrent
+ab -n 100 -c 10 http://localhost:3000/api/course
+
+# View response times and throughput
+```
+
+## Pre-Deployment Checklist
+
+Before deploying to production:
+
+<Checklist>
+  - [ ] All CI/CD checks pass
+  - [ ] Code reviewed and approved
+  - [ ] Tested on multiple browsers
+  - [ ] Tested on mobile devices
+  - [ ] No console errors or warnings
+  - [ ] Environment variables documented
+  - [ ] Database migrations completed (if any)
+  - [ ] Webhook endpoints configured
+  - [ ] API keys rotated (use production keys)
+  - [ ] Error monitoring setup (e.g., Sentry)
+  - [ ] Backup strategy in place
+</Checklist>
+
+## Future Testing Enhancements
+
+Potential testing improvements for the project:
+
+<CardGroup cols={2}>
+  <Card title="Unit Tests" icon="flask">
+    Add Jest/Vitest for testing individual functions and components
+  </Card>
+  <Card title="Integration Tests" icon="link">
+    Test API endpoints with Supertest or Postman collections
+  </Card>
+  <Card title="E2E Tests" icon="robot">
+    Implement Playwright or Cypress for end-to-end user flows
+  </Card>
+  <Card title="Visual Regression" icon="eye">
+    Use Percy or Chromatic to catch UI changes
+  </Card>
+</CardGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Project Structure" icon="folder-tree" href="/development/project-structure">
+    Understand the codebase organization
+  </Card>
+  <Card title="Contributing Guide" icon="code-pull-request" href="/development/contributing">
+    Learn the development workflow
+  </Card>
+</CardGroup>
+
+<Note>
+  Quality assurance is everyone's responsibility. Take time to test your changes thoroughly before submitting PRs.
+</Note>

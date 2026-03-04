@@ -1,0 +1,183 @@
+---
+title: 'Admin Dashboard'
+description: 'Platform overview with real-time statistics and analytics'
+icon: 'chart-line'
+---
+
+The Admin Dashboard provides a comprehensive overview of the SkillRise platform with real-time statistics, enrollment trends, and revenue analytics.
+
+## Overview
+
+The dashboard displays key platform metrics and visual charts to help administrators monitor platform health and user activity.
+
+### Key Statistics
+
+The dashboard tracks six primary metrics:
+
+<CardGroup cols={3}>
+  <Card title="Total Students" icon="users">
+    Count of all registered student users on the platform
+  </Card>
+  <Card title="Total Educators" icon="chalkboard-user">
+    Number of approved educators who can create courses
+  </Card>
+  <Card title="Total Revenue" icon="indian-rupee-sign">
+    Cumulative revenue from all completed purchases
+  </Card>
+  <Card title="Total Enrollments" icon="book-open">
+    Sum of all student enrollments across all courses
+  </Card>
+  <Card title="Total Courses" icon="graduation-cap">
+    Number of courses created on the platform
+  </Card>
+  <Card title="Pending Applications" icon="clock">
+    Educator applications awaiting review
+  </Card>
+</CardGroup>
+
+## Visual Analytics
+
+### Top Courses by Enrollment
+
+<Info>
+Displays the 6 most popular courses based on student enrollment count
+</Info>
+
+The horizontal bar chart shows:
+- Course titles (truncated to 22 characters)
+- Number of enrolled students per course
+- Interactive tooltips with exact enrollment numbers
+
+**Data Source**: Aggregates from the `Course` collection, sorted by `enrolledStudents` array length
+
+### Weekly Revenue Chart
+
+<Info>
+Tracks earnings over the last 7 days
+</Info>
+
+The area chart displays:
+- Daily revenue totals
+- 7-day trend visualization
+- Day labels (weekday + date)
+- Revenue formatted in Indian Rupees (₹)
+
+**Data Source**: Aggregates completed purchases from the `Purchase` collection, grouped by date
+
+## Navigation
+
+Each stat card is clickable and navigates to the relevant admin section:
+
+<Steps>
+  <Step title="Students & Educators">
+    Click **Total Students** or **Total Educators** to view the [User Management](/admins/user-management) page
+  </Step>
+  <Step title="Revenue">
+    Click **Total Revenue** to view the [Purchase Management](/admins/purchase-management) page
+  </Step>
+  <Step title="Enrollments & Courses">
+    Click **Total Enrollments** or **Total Courses** to view the [Course Management](/admins/course-management) page
+  </Step>
+  <Step title="Applications">
+    Click **Pending Applications** to review [Educator Applications](/admins/educator-applications)
+  </Step>
+</Steps>
+
+## API Endpoints
+
+The dashboard fetches data from two endpoints:
+
+### GET /api/admin/stats
+
+Returns platform-wide statistics:
+
+```json
+{
+  "success": true,
+  "stats": {
+    "totalStudents": 1250,
+    "totalCourses": 87,
+    "totalEducators": 45,
+    "pendingApplications": 3,
+    "totalRevenue": 458900,
+    "totalEnrollments": 3421
+  }
+}
+```
+
+### GET /api/admin/chart-data
+
+Returns chart visualization data:
+
+```json
+{
+  "success": true,
+  "topCourseData": [
+    {
+      "name": "Introduction to React",
+      "enrollments": 234
+    }
+  ],
+  "weeklyRevenue": [
+    {
+      "date": "Mon 1",
+      "revenue": 12500
+    }
+  ]
+}
+```
+
+<Note>
+Both endpoints require admin authentication via Bearer token
+</Note>
+
+## Implementation Details
+
+### Real-time Updates
+
+The dashboard loads data on mount using parallel API calls:
+
+```javascript
+const [sRes, cRes] = await Promise.all([
+  axios.get(backendUrl + '/api/admin/stats', { headers }),
+  axios.get(backendUrl + '/api/admin/chart-data', { headers }),
+])
+```
+
+### Dark Mode Support
+
+All components support dark mode with appropriate color schemes:
+- Light backgrounds with subtle shadows
+- Dark backgrounds with border highlights
+- Accessible color contrast ratios
+
+### Responsive Design
+
+The dashboard adapts to different screen sizes:
+- **Mobile**: 2-column grid for stat cards
+- **Tablet**: 3-column grid with collapsed chart details
+- **Desktop**: Full layout with all information visible
+
+## Data Aggregation
+
+<Accordion title="Revenue Calculation">
+Revenue is calculated by aggregating all purchases with `status: 'completed'` and summing their `amount` fields. Pending, failed, or refunded purchases are excluded from revenue totals.
+</Accordion>
+
+<Accordion title="Enrollment Count">
+Total enrollments are calculated by summing the length of the `enrolledStudents` array across all courses using MongoDB aggregation pipeline.
+</Accordion>
+
+<Accordion title="Educator Count">
+Educators are counted from the `EducatorApplication` collection where `status: 'approved'`. This ensures only active educators with approved applications are counted.
+</Accordion>
+
+## Best Practices
+
+<Warning>
+The dashboard displays current platform state. For historical trends and detailed analytics, export data using the respective management pages.
+</Warning>
+
+<Tip>
+Check the **Pending Applications** indicator regularly. A high number may indicate slow response times for aspiring educators.
+</Tip>

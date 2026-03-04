@@ -1,0 +1,287 @@
+---
+title: 'Purchase Management'
+description: 'Monitor transactions, revenue, and payment status'
+icon: 'credit-card'
+---
+
+The Purchase Management interface allows administrators to track all transaction activity on the platform, including completed purchases, pending payments, and failed transactions.
+
+## Overview
+
+Administrators can monitor the full transaction lifecycle, filter by payment status, and view detailed purchase information for financial reporting and customer support.
+
+<Info>
+All revenue calculations include only completed purchases, excluding pending, failed, or refunded transactions
+</Info>
+
+## Purchase Status Types
+
+The platform tracks five distinct transaction states:
+
+<CardGroup cols={3}>
+  <Card title="Completed" icon="check-circle" color="#14b8a6">
+    Successful payments that resulted in course enrollment
+  </Card>
+  <Card title="Created" icon="file-invoice" color="#3b82f6">
+    Payment initiated but not yet processed
+  </Card>
+  <Card title="Pending" icon="clock" color="#f59e0b">
+    Payment processing in progress
+  </Card>
+  <Card title="Failed" icon="circle-xmark" color="#ef4444">
+    Payment attempt unsuccessful
+  </Card>
+  <Card title="Refunded" icon="rotate-left" color="#a855f7">
+    Completed payment that was reversed
+  </Card>
+</CardGroup>
+
+## Filter System
+
+### Status Filtering
+
+Administrators can filter the purchase list by status using the tab interface:
+
+<Tabs>
+  <Tab title="All">
+    Displays all purchases regardless of status
+  </Tab>
+  <Tab title="Completed">
+    Shows only successful transactions
+  </Tab>
+  <Tab title="Created">
+    Lists payments that have been initiated
+  </Tab>
+  <Tab title="Pending">
+    Shows payments currently processing
+  </Tab>
+  <Tab title="Failed">
+    Displays unsuccessful payment attempts
+  </Tab>
+  <Tab title="Refunded">
+    Lists reversed transactions
+  </Tab>
+</Tabs>
+
+### Dynamic Filtering
+
+Filters are applied server-side for optimal performance:
+
+```javascript
+const filter = status && status !== 'all' ? { status } : {}
+const purchases = await Purchase.find(filter)
+  .populate('courseId', 'courseTitle')
+  .sort({ createdAt: -1 })
+```
+
+## Purchase Information Display
+
+Each transaction entry shows detailed information:
+
+### Table Columns
+
+| Column | Description | Visibility |
+|--------|-------------|------------|
+| **Course** | Title of the purchased course | Always visible |
+| **User ID** | Unique identifier of the purchaser | Hidden on mobile |
+| **Amount** | Transaction amount in Indian Rupees | Always visible |
+| **Status** | Current payment state with color coding | Always visible |
+| **Date** | Transaction creation timestamp | Hidden on tablet |
+
+### Data Fields
+
+<Steps>
+  <Step title="Course Title">
+    Populated from the Course collection via `courseId` reference
+  </Step>
+  <Step title="User ID">
+    Displayed as a monospace string for easy copying
+  </Step>
+  <Step title="Amount">
+    Formatted with Indian locale: `₹2,499`
+  </Step>
+  <Step title="Status Badge">
+    Color-coded pill with appropriate styling per status
+  </Step>
+  <Step title="Date">
+    Formatted as "15 Jan 2024" using Indian date format
+  </Step>
+</Steps>
+
+## Revenue Calculation
+
+The page header displays aggregate revenue statistics:
+
+```javascript
+const totalRevenue = purchases
+  .filter((p) => p.status === 'completed')
+  .reduce((sum, p) => sum + p.amount, 0)
+```
+
+<Note>
+Revenue totals are calculated client-side from the filtered purchase list and update dynamically based on the selected status filter
+</Note>
+
+### Revenue Display Logic
+
+Revenue is shown when:
+- Filter is set to "All" (shows completed purchase revenue)
+- Filter is set to "Completed" (shows total from filtered list)
+
+Revenue is hidden for:
+- Created, Pending, Failed, or Refunded filters (as these don't contribute to revenue)
+
+## API Integration
+
+### GET /api/admin/purchases
+
+Fetches purchases with optional status filtering:
+
+**Request**:
+```http
+GET /api/admin/purchases?status=completed
+Authorization: Bearer <admin_token>
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "purchases": [
+    {
+      "_id": "purchase123",
+      "userId": "user_2abc123def456",
+      "courseId": {
+        "courseTitle": "Introduction to React"
+      },
+      "amount": 2499,
+      "currency": "INR",
+      "status": "completed",
+      "createdAt": "2024-03-15T14:30:00Z"
+    }
+  ]
+}
+```
+
+<Warning>
+Requires admin authentication via Bearer token in the Authorization header
+</Warning>
+
+## Status Color Coding
+
+Each status has distinct visual styling:
+
+### Color Scheme
+
+```javascript
+const STATUS_STYLES = {
+  completed: 'bg-teal-50 text-teal-700 border-teal-200',
+  created: 'bg-blue-50 text-blue-700 border-blue-200',
+  pending: 'bg-amber-50 text-amber-700 border-amber-200',
+  failed: 'bg-red-50 text-red-700 border-red-200',
+  refunded: 'bg-purple-50 text-purple-700 border-purple-200'
+}
+```
+
+### Dark Mode Variants
+
+All status badges include dark mode support:
+```javascript
+'dark:bg-teal-900/20 dark:text-teal-400 dark:border-teal-800'
+```
+
+## Transaction Sorting
+
+Purchases are sorted by creation date in descending order:
+
+```javascript
+.sort({ createdAt: -1 })
+```
+
+This ensures the most recent transactions appear first, which is critical for:
+- Customer support inquiries
+- Real-time revenue monitoring
+- Failed payment follow-up
+
+## Empty States
+
+<Info>
+When no purchases match the filter criteria, a centered message appears: "No purchases found"
+</Info>
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Revenue Tracking">
+    Monitor completed purchases to track platform revenue in real-time. Filter by date range to analyze trends.
+  </Accordion>
+  <Accordion title="Failed Payment Investigation">
+    Filter by "Failed" status to identify payment issues and proactively reach out to users experiencing problems.
+  </Accordion>
+  <Accordion title="Refund Management">
+    Track all refunded transactions to maintain accurate financial records and identify refund patterns.
+  </Accordion>
+  <Accordion title="Customer Support">
+    Search by User ID to quickly locate a specific customer's purchase history during support inquiries.
+  </Accordion>
+  <Accordion title="Financial Reporting">
+    Export completed purchase data for accounting and tax reporting purposes.
+  </Accordion>
+</AccordionGroup>
+
+## Responsive Design
+
+<CardGroup cols={3}>
+  <Card title="Mobile" icon="mobile">
+    Displays course, amount, and status only for compact viewing
+  </Card>
+  <Card title="Tablet" icon="tablet">
+    Adds User ID column while hiding date for medium screens
+  </Card>
+  <Card title="Desktop" icon="desktop">
+    Shows all columns with complete transaction details
+  </Card>
+</CardGroup>
+
+## Performance Optimization
+
+### Server-side Filtering
+
+Status filters are applied at the database level:
+```javascript
+const filter = status !== 'all' ? { status } : {}
+const purchases = await Purchase.find(filter)
+```
+
+This ensures only relevant records are transferred over the network.
+
+### Field Selection
+
+Only necessary fields are queried:
+```javascript
+.select('userId courseId amount currency status createdAt')
+```
+
+### Populated References
+
+Course titles are efficiently populated:
+```javascript
+.populate('courseId', 'courseTitle')
+```
+
+## Data Model
+
+The Purchase model includes:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `userId` | String | Clerk user identifier |
+| `courseId` | ObjectId | Reference to Course document |
+| `amount` | Number | Payment amount in paisa/cents |
+| `currency` | String | Currency code (e.g., "INR") |
+| `status` | String | One of: completed, created, pending, failed, refunded |
+| `createdAt` | Date | Transaction creation timestamp |
+
+<Tip>
+Regularly monitor the "Failed" and "Pending" status filters to identify and resolve payment gateway issues before they affect multiple users.
+</Tip>

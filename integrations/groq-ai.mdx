@@ -1,0 +1,569 @@
+---
+title: 'Groq AI Integration'
+description: 'Set up Groq AI for chatbot, quiz generation, and personalized learning roadmaps'
+icon: 'robot'
+---
+
+## Overview
+
+SkillRise uses [Groq](https://groq.com) for AI-powered features. Groq provides ultra-fast LLM inference with models like LLaMA, optimized for real-time applications.
+
+## AI Features
+
+SkillRise leverages Groq AI for four key features:
+
+1. **AI Chatbot**: Personalized learning assistant with course context
+2. **Quiz Generation**: Auto-generate chapter quizzes from course content
+3. **Study Recommendations**: AI-powered feedback based on quiz performance
+4. **Learning Roadmaps**: Personalized and custom learning paths
+
+## Environment Variables
+
+Add this to your `server/.env` file:
+
+```env server/.env
+GROQ_CHATBOT_API_KEY=gsk_...
+```
+
+<Note>
+Get your API key from the [Groq Console](https://console.groq.com). Sign up for free to access the API.
+</Note>
+
+## Setup Instructions
+
+<Steps>
+  <Step title="Create Groq Account">
+    1. Go to [Groq Console](https://console.groq.com)
+    2. Sign up for a free account
+    3. Free tier includes generous rate limits for development
+  </Step>
+
+  <Step title="Generate API Key">
+    1. Navigate to **API Keys** in the Groq Console
+    2. Click **Create API Key**
+    3. Name your key (e.g., "SkillRise Development")
+    4. Copy the key (starts with `gsk_`)
+    5. Add it to `server/.env`:
+       ```env
+       GROQ_CHATBOT_API_KEY=gsk_...
+       ```
+  </Step>
+
+  <Step title="Install Dependencies">
+    ```bash
+    cd server
+    npm install groq-sdk
+    ```
+  </Step>
+
+  <Step title="Test Connection">
+    Create a test script to verify your setup:
+    ```javascript test-groq.js
+    import { Groq } from 'groq-sdk'
+
+    const groq = new Groq({ apiKey: process.env.GROQ_CHATBOT_API_KEY })
+
+    const response = await groq.chat.completions.create({
+      model: 'openai/gpt-oss-120b',
+      messages: [{ role: 'user', content: 'Hello!' }],
+    })
+
+    console.log(response.choices[0].message.content)
+    ```
+    Run: `node test-groq.js`
+  </Step>
+</Steps>
+
+## Core Service
+
+SkillRise uses a centralized AI service for all Groq interactions:
+
+```javascript server/services/chatbot/aiChatbotService.js
+import { Groq } from 'groq-sdk'
+
+const groq = new Groq({ apiKey: process.env.GROQ_CHATBOT_API_KEY })
+
+export const generateAIResponse = async (messages) => {
+  const completion = await groq.chat.completions.create({
+    model: 'openai/gpt-oss-120b',
+    messages,
+    temperature: 0.7,
+    max_tokens: 5000,
+    top_p: 1,
+    stream: false,
+  })
+
+  return completion.choices?.[0]?.message?.content?.trim() || 
+         'No response generated.'
+}
+```
+
+### Model Selection
+
+SkillRise uses `openai/gpt-oss-120b` (GPT-OSS 120B) for all AI features. Other available models:
+
+| Model | Best For | Speed |
+|-------|----------|-------|
+| `openai/gpt-oss-120b` | General purpose, high quality | Fast |
+| `meta-llama/llama-3.3-70b-versatile` | Balanced quality & speed | Very Fast |
+| `meta-llama/llama-3.1-8b-instant` | Low latency, simple tasks | Ultra Fast |
+
+## Feature 1: AI Chatbot
+
+The AI chatbot is a personalized learning assistant that helps students with course content and study guidance.
+
+### Context Building
+
+The chatbot builds personalized context for each student:
+
+```javascript server/controllers/chatbotController.js
+async function buildUserContext(userId) {
+  const user = await User.findById(userId).populate(
+    'enrolledCourses',
+    'courseTitle courseContent'
+  )
+
+  if (!user || user.enrolledCourses.length === 0) {
+    return `Student has not enrolled in any courses yet.`
+  }
+
+  const courseIds = user.enrolledCourses.map((c) => c._id.toString())
+
+  const [progressRecords, quizResults] = await Promise.all([
+    CourseProgress.find({ userId, courseId: { $in: courseIds } }),
+    QuizResult.find({ userId }).sort({ createdAt: -1 }).limit(20),
+  ])
+
+  // Build context with course progress and quiz performance
+  const courseLines = user.enrolledCourses.map((course) => {
+    const progress = progressRecords.find(
+      (p) => p.courseId === course._id.toString()
+    )
+    const totalLectures = course.courseContent.reduce(
+      (sum, ch) => sum + ch.chapterContent.length,
+      0
+    )
+    const completedLectures = progress?.lectureCompleted?.length || 0
+    const pct = totalLectures > 0 
+      ? Math.round((completedLectures / totalLectures) * 100) 
+      : 0
+    
+    return `  • "${course.courseTitle}" — ${pct}% complete (${completedLectures}/${totalLectures} lectures)`
+  }).join('\n')
+
+  return `Student Name: ${user.name}\n\nEnrolled Courses & Progress:\n${courseLines}`
+}
+```
+
+### System Prompt
+
+```javascript server/controllers/chatbotController.js
+function buildSystemPrompt(userContext) {
+  return `You are SkillRise AI Assistant, a personalized learning companion for the SkillRise e-learning platform.
+- Help students with course content, tech-learning questions, and study guidance.
+- Be concise, encouraging, and focused on educational queries.
+- Use the student's learning context below to give personalized, relevant advice.
+- When asked what to study next or where to focus, use their quiz performance and progress to guide them specifically.
+- If a student is marked "Needs Review" on a topic, proactively suggest they revisit it.
+
+=== STUDENT LEARNING CONTEXT ===
+${userContext}
+=================================`
+}
+```
+
+### Chat Endpoint
+
+```javascript server/controllers/chatbotController.js
+import { generateAIResponse } from '../services/chatbot/aiChatbotService.js'
+import ChatSession from '../models/AiChat.js'
+
+export const aiChatbot = async (req, res) => {
+  try {
+    const userId = req.auth.userId
+    const { content, sessionId } = req.body
+
+    // Build fresh personalized system prompt
+    const userContext = await buildUserContext(userId)
+    const systemPrompt = buildSystemPrompt(userContext)
+
+    // Find or create chat session
+    let chat = await ChatSession.findOne({ sessionId, userId })
+    if (!chat) {
+      chat = await ChatSession.create({
+        userId,
+        sessionId: uuidv4(),
+        messages: [],
+      })
+    }
+
+    const history = chat.messages.slice(-20)
+    chat.messages.push({ role: 'user', content })
+
+    // Generate AI response with context
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...history.filter((m) => m.role !== 'system')
+                .map(({ role, content }) => ({ role, content })),
+      { role: 'user', content: content.trim() },
+    ]
+
+    const aiReply = await generateAIResponse(messages)
+
+    chat.messages.push({ role: 'assistant', content: aiReply })
+    await chat.save()
+
+    return res.json({
+      success: true,
+      activeSessionId: chat.sessionId,
+      response: aiReply,
+      conversationHistory: chat.messages,
+    })
+  } catch (err) {
+    console.error('Chatbot Error:', err)
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Failed to generate AI response.' 
+    })
+  }
+}
+```
+
+**API Endpoint:**
+```javascript
+POST /api/user/ai-chat
+
+Request:
+{
+  "content": "What should I focus on next?",
+  "sessionId": "uuid-here" // optional
+}
+
+Response:
+{
+  "success": true,
+  "activeSessionId": "uuid-here",
+  "response": "Based on your progress...",
+  "conversationHistory": [...]
+}
+```
+
+## Feature 2: Quiz Generation
+
+Automatically generate chapter quizzes from course content:
+
+```javascript server/controllers/quizController.js
+import { generateAIResponse } from '../services/chatbot/aiChatbotService.js'
+
+const buildQuiz = async (course, chapter) => {
+  const lectureList = chapter.chapterContent
+    .map((lecture) => lecture.lectureTitle)
+    .join(', ')
+
+  const prompt = `You are an educational quiz generator. Generate a quiz for a chapter titled "${chapter.chapterTitle}" from a course titled "${course.courseTitle}".
+The chapter covers these lectures: ${lectureList}.
+
+Generate exactly 10 multiple-choice questions that test conceptual understanding of the chapter topics.
+Return ONLY valid JSON (no markdown, no extra text) in this exact structure:
+{
+  "questions": [
+    {
+      "question": "Question text?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctIndex": 0,
+      "explanation": "Brief explanation why this answer is correct."
+    }
+  ]
+}`
+
+  const raw = await generateAIResponse([{ role: 'user', content: prompt }])
+
+  // Parse JSON (handle markdown code blocks)
+  const jsonStr = raw.replace(/```json|```/g, '').trim()
+  const parsed = JSON.parse(jsonStr)
+
+  // Validate with Zod
+  const quizValidation = QuizResponseSchema.safeParse(parsed)
+  if (!quizValidation.success) {
+    throw new Error('AI returned invalid quiz structure')
+  }
+
+  // Save to database
+  const quiz = await Quiz.findOneAndUpdate(
+    { courseId: course._id.toString(), chapterId: chapter.chapterId },
+    {
+      courseId: course._id.toString(),
+      chapterId: chapter.chapterId,
+      chapterTitle: chapter.chapterTitle,
+      courseTitle: course.courseTitle,
+      questions: quizValidation.data.questions,
+    },
+    { upsert: true, new: true }
+  )
+
+  return quiz
+}
+```
+
+**API Endpoint:**
+```javascript
+POST /api/quiz/generate
+
+Request:
+{
+  "courseId": "64abc123...",
+  "chapterId": "chapter-1"
+}
+
+Response:
+{
+  "success": true,
+  "quiz": {
+    "questions": [
+      {
+        "question": "What is React?",
+        "options": ["Library", "Framework", "Language", "Tool"],
+        "correctIndex": 0,
+        "explanation": "React is a JavaScript library..."
+      }
+    ]
+  }
+}
+```
+
+## Feature 3: Study Recommendations
+
+Generate personalized study recommendations based on quiz performance:
+
+```javascript server/controllers/quizController.js
+export const submitQuiz = async (req, res) => {
+  // ... score quiz ...
+
+  const wrongList = wrongQuestions.length
+    ? wrongQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')
+    : 'None — all questions answered correctly!'
+
+  const recPrompt = `A student scored ${score}/${total} (${percentage}%) on a quiz about "${quiz.chapterTitle}" from "${quiz.courseTitle}".
+They are in the "${GROUP_LABEL[group]}" group.
+
+Questions they answered incorrectly:
+${wrongList}
+
+Provide 4-5 concise, actionable bullet points to help them improve. Focus on:
+- Concepts to revisit
+- Short exercises or practice ideas
+- Motivational tips suited to their performance level
+
+Return only the bullet points (start each with •). No intro, no conclusion.`
+
+  const recommendations = await generateAIResponse([
+    { role: 'user', content: recPrompt }
+  ])
+
+  // Save result with recommendations
+  const result = await QuizResult.create({
+    userId,
+    courseId,
+    chapterId,
+    score,
+    total,
+    percentage,
+    group,
+    recommendations,
+    answers,
+  })
+
+  res.json({ success: true, result })
+}
+```
+
+## Feature 4: Learning Roadmaps
+
+Generate personalized learning roadmaps based on enrolled courses:
+
+```javascript server/controllers/roadmapController.js
+export const generatePersonalRoadmap = async (req, res) => {
+  const userId = req.auth.userId
+
+  const userData = await User.findById(userId).populate({
+    path: 'enrolledCourses',
+    select: 'courseTitle courseDescription courseContent',
+  })
+
+  // Calculate per-course completion
+  const courseStats = await Promise.all(
+    courses.map(async (course) => {
+      const progress = await CourseProgress.findOne({ 
+        userId, 
+        courseId: course._id.toString() 
+      })
+      const totalLectures = course.courseContent.reduce(
+        (s, ch) => s + (ch.chapterContent?.length || 0),
+        0
+      )
+      const doneLectures = progress?.lectureCompleted?.length || 0
+      const pct = totalLectures > 0 
+        ? Math.round((doneLectures / totalLectures) * 100) 
+        : 0
+      
+      return {
+        title: course.courseTitle,
+        completionPercent: pct,
+        totalLectures,
+        doneLectures,
+      }
+    })
+  )
+
+  const prompt = `You are a professional learning path advisor. Analyze this learner's enrolled courses and progress, then output a personalized roadmap as strict JSON only.
+
+LEARNER'S COURSES:
+${courseList}
+
+Return ONLY this exact JSON shape:
+{
+  "title": "Your Personalized Learning Roadmap",
+  "summary": "4–5 sentence overview...",
+  "stages": [
+    {
+      "id": "mastered",
+      "label": "What You've Mastered",
+      "status": "completed",
+      "skills": [...],
+      "highlights": [...],
+      "description": "..."
+    },
+    ...
+  ]
+}`
+
+  const raw = await generateAIResponse([
+    { role: 'system', content: 'You are a JSON generator...' },
+    { role: 'user', content: prompt },
+  ])
+
+  const roadmap = parseJSON(raw)
+  const roadmapValidation = RoadmapSchema.safeParse(roadmap)
+
+  res.json({ success: true, roadmap: roadmapValidation.data, courseStats })
+}
+```
+
+## Rate Limiting
+
+Protect AI endpoints from abuse:
+
+```javascript server/server.js
+import { rateLimit, ipKeyGenerator } from 'express-rate-limit'
+
+// AI chat — 30 req / 10 min
+const aiChatLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 30,
+  keyGenerator: (req) => req.auth?.userId || ipKeyGenerator(req),
+  message: { 
+    success: false, 
+    message: 'Too many requests. Please wait a moment.' 
+  },
+})
+
+// AI generation (quiz + roadmap) — 10 req / hour
+const aiGenerationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  keyGenerator: (req) => req.auth?.userId || ipKeyGenerator(req),
+  message: { 
+    success: false, 
+    message: 'Too many generation requests.' 
+  },
+})
+
+app.use('/api/user/ai-chat', aiChatLimiter)
+app.use('/api/user/generate-personal-roadmap', aiGenerationLimiter)
+app.use('/api/user/generate-custom-roadmap', aiGenerationLimiter)
+app.use('/api/quiz/generate', aiGenerationLimiter)
+```
+
+## Error Handling
+
+Handle AI errors gracefully:
+
+```javascript
+try {
+  const response = await generateAIResponse(messages)
+  return response
+} catch (error) {
+  if (error.code === 'rate_limit_exceeded') {
+    return 'I\'m a bit busy right now. Please try again in a moment.'
+  }
+  if (error.code === 'model_not_found') {
+    console.error('Invalid model specified')
+    return 'Service temporarily unavailable.'
+  }
+  console.error('AI Error:', error)
+  return 'I encountered an error. Please try again.'
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use System Prompts" icon="message">
+    Always provide clear system prompts to guide AI behavior and output format.
+  </Card>
+  <Card title="Validate Responses" icon="shield-check">
+    Use Zod or similar validation to ensure AI responses match expected schema.
+  </Card>
+  <Card title="Rate Limiting" icon="gauge">
+    Apply strict rate limits to prevent API cost abuse and ensure fair usage.
+  </Card>
+  <Card title="Handle Failures" icon="triangle-exclamation">
+    Implement fallbacks for AI failures (cached responses, error messages).
+  </Card>
+</CardGroup>
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="API key invalid or rate limit exceeded">
+    - Verify `GROQ_CHATBOT_API_KEY` is correct (starts with `gsk_`)
+    - Check your Groq Console for rate limit status
+    - Implement exponential backoff for rate limit errors
+  </Accordion>
+
+  <Accordion title="AI returns invalid JSON">
+    - Add explicit instructions: "Return ONLY valid JSON, no markdown"
+    - Strip markdown code blocks: `raw.replace(/```json|```/g, '')`
+    - Use multiple parsing strategies (see `parseJSON` helper)
+    - Validate with Zod before using the response
+  </Accordion>
+
+  <Accordion title="Responses are too generic">
+    - Include more specific context in system prompts
+    - Pass user progress data in the prompt
+    - Lower temperature (0.5-0.7) for more focused responses
+  </Accordion>
+
+  <Accordion title="Chatbot forgets conversation history">
+    - Ensure you're passing previous messages in the `messages` array
+    - Limit history to last 20 messages to avoid token limits
+    - Store sessions in database with `sessionId`
+  </Accordion>
+</AccordionGroup>
+
+## Resources
+
+<CardGroup cols={2}>
+  <Card title="Groq Docs" icon="book" href="https://console.groq.com/docs">
+    Official Groq documentation
+  </Card>
+  <Card title="API Reference" icon="code" href="https://console.groq.com/docs/api-reference">
+    Groq API reference
+  </Card>
+  <Card title="Models" icon="microchip" href="https://console.groq.com/docs/models">
+    Available models and pricing
+  </Card>
+  <Card title="Rate Limits" icon="gauge" href="https://console.groq.com/docs/rate-limits">
+    Rate limits and quotas
+  </Card>
+</CardGroup>

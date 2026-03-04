@@ -1,97 +1,308 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: SkillRise Documentation
+description: Build the future of learning with our AI-powered e-learning platform
+mode: custom
 ---
 
-## Setting up
+<div className="relative overflow-hidden bg-gradient-to-br from-[#0f7c75] via-[#30af9f] to-[#16887A] dark:from-[#161719] dark:via-[#24605c] dark:to-[#30af9f] py-20">
+  <div className="max-w-7xl mx-auto px-6 lg:px-8">
+    <div className="grid lg:grid-cols-12 gap-12 items-center">
+      <div className="lg:col-span-7">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
+          Welcome to SkillRise Documentation
+        </h1>
+        <p className="text-lg sm:text-xl text-white/90 max-w-2xl mb-8">
+          Everything you need to set up, customize, and scale your AI-powered e-learning platform. Built for students, educators, and administrators.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <a 
+            href="/quickstart" 
+            className="inline-flex items-center px-6 py-3 bg-white text-[#0f7c75] font-semibold rounded-lg hover:bg-gray-50 transition-colors shadow-lg no-underline"
+          >
+            Get Started
+            <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </a>
+          <a 
+            href="/api/overview" 
+            className="inline-flex items-center px-6 py-3 border-2 border-white/30 bg-white/10 text-white font-semibold rounded-lg hover:bg-white/20 transition-colors backdrop-blur-sm no-underline"
+          >
+            Explore API Reference
+          </a>
+        </div>
+      </div>
+      <div className="lg:col-span-5 hidden lg:block">
+        <div className="relative">
+          <div className="absolute inset-0 bg-white/10 backdrop-blur-xl rounded-2xl"></div>
+          <div className="relative p-8 text-white">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="font-semibold">Rich Course Builder</div>
+                  <div className="text-sm text-white/80">Create engaging content</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="font-semibold">AI-Powered Learning</div>
+                  <div className="text-sm text-white/80">Smart chatbot & roadmaps</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="font-semibold">Community Features</div>
+                  <div className="text-sm text-white/80">Groups & discussions</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">Quick start</h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">Get SkillRise running in under 10 minutes</p>
+  
+  <Steps>
+    <Step title="Clone the repository">
+      Clone the SkillRise repository from GitHub to your local machine.
+      
+      ```bash
+      git clone https://github.com/pv-pushkarverma/SkillRise.git
+      cd SkillRise
+      ```
+    </Step>
+    
+    <Step title="Configure environment variables">
+      Set up your environment variables for both the client and server. You'll need accounts with Clerk, Stripe, Cloudinary, and Groq.
+      
+      ```bash
+      # Copy example env files
+      cp server/.env.example server/.env
+      cp client/.env.example client/.env
+      ```
+      
+      <Accordion title="Required environment variables">
+        **Server (`server/.env`):**
+        - `MONGODB_URI` - MongoDB connection string
+        - `CLERK_SECRET_KEY` - Clerk authentication secret
+        - `STRIPE_SECRET_KEY` - Stripe payment processing
+        - `CLOUDINARY_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_SECRET_KEY` - Media uploads
+        - `GROQ_CHATBOT_API_KEY` - AI features
+        
+        **Client (`client/.env`):**
+        - `VITE_CLERK_PUBLISHABLE_KEY` - Clerk public key
+        - `VITE_STRIPE_PUBLISHABLE_KEY` - Stripe public key
+        - `VITE_BACKEND_URL` - Backend API URL (default: `http://localhost:3000`)
+      </Accordion>
+    </Step>
+    
+    <Step title="Install dependencies and start services">
+      Install dependencies for both the client and server, then start the development servers.
+      
+      <CodeGroup>
+      ```bash Local Development
+      # Install server dependencies
+      cd server && npm install
+      
+      # Install client dependencies
+      cd ../client && npm install
+      
+      # Start backend (in one terminal)
+      cd server && npm run server
+      
+      # Start frontend (in another terminal)
+      cd client && npm run dev
+      ```
+      
+      ```bash Docker
+      # Using Docker Compose (simplest option)
+      docker compose up --build
+      
+      # Access the application at:
+      # Frontend: http://localhost
+      # Backend: http://localhost:3000
+      ```
+      </CodeGroup>
+    </Step>
+    
+    <Step title="Seed the database (optional)">
+      Populate your database with sample courses, users, and content to explore features immediately.
+      
+      ```bash
+      cd server
+      npm run seed
+      ```
+      
+      <Note>
+        The seeder creates demo educators, students, courses, quizzes, community groups, and posts. This is helpful for testing and development.
+      </Note>
+    </Step>
+  </Steps>
+</div>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">Explore by role</h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">Find documentation tailored to your use case</p>
+  
+  <CardGroup cols={3}>
+    <Card title="For Students" icon="graduation-cap" href="/students/browsing-courses">
+      Browse courses, enroll, track progress, and chat with AI learning assistants
+    </Card>
+    <Card title="For Educators" icon="chalkboard-user" href="/educators/becoming-educator">
+      Create courses, manage content, track enrollments, and view revenue analytics
+    </Card>
+    <Card title="For Admins" icon="shield-halved" href="/admins/dashboard">
+      Manage users, courses, purchases, and review educator applications
+    </Card>
+  </CardGroup>
+</div>
 
-## Make it yours
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">Core features</h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">Powerful capabilities out of the box</p>
+  
+  <CardGroup cols={2}>
+    <Card title="AI-Powered Features" icon="brain" href="/features/ai-features">
+      Groq-powered chatbot, personalized roadmaps, and auto-generated quizzes
+    </Card>
+    <Card title="Payment System" icon="credit-card" href="/features/payment-system">
+      Secure Stripe integration with embedded checkout and webhook handling
+    </Card>
+    <Card title="Course Management" icon="book-open" href="/features/course-management">
+      Multi-chapter courses with video player, progress tracking, and certificates
+    </Card>
+    <Card title="Community" icon="users" href="/features/community">
+      Discussion groups, posts with upvotes, and threaded replies
+    </Card>
+    <Card title="Analytics" icon="chart-line" href="/features/analytics">
+      Time tracking, learning progress, and comprehensive dashboards
+    </Card>
+    <Card title="Authentication" icon="lock" href="/features/authentication">
+      Clerk-powered auth with multi-role system (students, educators, admins)
+    </Card>
+  </CardGroup>
+</div>
 
-Design a docs site that looks great and empowers your users.
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">Integration guides</h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">Connect with third-party services</p>
+  
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <a href="/integrations/clerk" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#30af9f] dark:hover:border-[#30af9f] transition-colors overflow-hidden no-underline bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-[#30af9f] transition-colors">Clerk Authentication</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Set up user authentication with webhooks and role-based access control</p>
+        <div className="flex items-center text-sm text-[#30af9f] font-medium">
+          View guide
+          <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </a>
+    
+    <a href="/integrations/stripe" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#30af9f] dark:hover:border-[#30af9f] transition-colors overflow-hidden no-underline bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-[#30af9f] transition-colors">Stripe Payments</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Configure payment processing with embedded checkout and webhook verification</p>
+        <div className="flex items-center text-sm text-[#30af9f] font-medium">
+          View guide
+          <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </a>
+    
+    <a href="/integrations/groq-ai" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#30af9f] dark:hover:border-[#30af9f] transition-colors overflow-hidden no-underline bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-[#30af9f] transition-colors">Groq AI</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Enable AI chatbot, roadmap generation, and quiz creation with LLaMA models</p>
+        <div className="flex items-center text-sm text-[#30af9f] font-medium">
+          View guide
+          <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </a>
+    
+    <a href="/integrations/cloudinary" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#30af9f] dark:hover:border-[#30af9f] transition-colors overflow-hidden no-underline bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-[#30af9f] transition-colors">Cloudinary</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Configure media uploads for course thumbnails and content</p>
+        <div className="flex items-center text-sm text-[#30af9f] font-medium">
+          View guide
+          <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">Deployment & development</h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">Deploy to production and contribute to the project</p>
+  
+  <CardGroup cols={2}>
+    <Card title="Docker Deployment" icon="docker" href="/deployment/docker">
+      Deploy with Docker Compose or use pre-built images from Docker Hub
+    </Card>
+    <Card title="CI/CD Pipeline" icon="code-branch" href="/deployment/ci-cd">
+      Automated testing, linting, and deployment via GitHub Actions
+    </Card>
+    <Card title="Project Structure" icon="folder-tree" href="/development/project-structure">
+      Understand the codebase architecture and file organization
+    </Card>
+    <Card title="Contributing" icon="code-pull-request" href="/development/contributing">
+      Contribute to SkillRise with our development workflow
+    </Card>
+  </CardGroup>
+</div>
 
-## Create beautiful pages
-
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="rounded-2xl bg-gradient-to-r from-[#30af9f] to-[#16887A] dark:from-[#24605c] dark:to-[#30af9f] p-8 sm:p-12 text-center">
+    <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
+      Ready to build your e-learning platform?
+    </h2>
+    <p className="text-lg text-white/90 mb-8 max-w-2xl mx-auto">
+      Follow our quickstart guide to get SkillRise running in minutes, or explore the API reference to integrate with your existing systems.
+    </p>
+    <div className="flex flex-wrap justify-center gap-4">
+      <a 
+        href="/quickstart" 
+        className="inline-flex items-center px-6 py-3 bg-white text-[#0f7c75] font-semibold rounded-lg hover:bg-gray-50 transition-colors shadow-lg no-underline"
+      >
+        Start building
+      </a>
+      <a 
+        href="https://github.com/pv-pushkarverma/SkillRise" 
+        className="inline-flex items-center px-6 py-3 border-2 border-white/30 bg-white/10 text-white font-semibold rounded-lg hover:bg-white/20 transition-colors backdrop-blur-sm no-underline"
+      >
+        View on GitHub
+      </a>
+    </div>
+  </div>
+</div>

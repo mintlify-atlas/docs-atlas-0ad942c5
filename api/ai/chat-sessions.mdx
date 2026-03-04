@@ -1,0 +1,333 @@
+---
+title: Chat Sessions
+description: Manage AI chatbot conversation sessions
+---
+
+## Overview
+
+Chat Sessions endpoints allow you to retrieve, list, and delete AI chatbot conversation history. Each session represents a conversation thread between a student and the SkillRise AI Assistant.
+
+All sessions are user-specific and secured by user authentication to ensure privacy.
+
+---
+
+## GET /api/user/chat/:sessionId
+
+Retrieve the complete message history for a specific chat session.
+
+### Authentication
+
+Requires JWT authentication token in the Authorization header.
+
+### URL Parameters
+
+<ParamField path="sessionId" type="string" required>
+  The unique session identifier (UUID v4 format).
+</ParamField>
+
+### Response
+
+<ResponseField name="_id" type="string">
+  MongoDB document ID for the chat session.
+</ResponseField>
+
+<ResponseField name="messages" type="array">
+  Array of all messages in the conversation.
+  <Expandable title="Message Object">
+    <ResponseField name="role" type="string">
+      Message sender: `user`, `assistant`, or `system`.
+    </ResponseField>
+    <ResponseField name="content" type="string">
+      The message text content.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What should I focus on studying next?"
+    },
+    {
+      "role": "assistant",
+      "content": "Based on your recent quiz results, I recommend focusing on the authentication module in your Web Development course. You scored 60% on that chapter, which indicates it needs review."
+    },
+    {
+      "role": "user",
+      "content": "Can you explain JWT tokens?"
+    },
+    {
+      "role": "assistant",
+      "content": "JWT (JSON Web Token) is a compact, URL-safe means of representing claims between two parties. It consists of three parts: Header, Payload, and Signature, separated by dots. JWTs are commonly used for authentication because they're stateless and can be verified without querying a database."
+    }
+  ]
+}
+```
+
+### Error Responses
+
+<ResponseExample>
+```json 404 Not Found
+{
+  "success": false,
+  "message": "Chat session not found"
+}
+```
+
+```json 500 Internal Server Error
+{
+  "success": false,
+  "message": "Error while fetching conversation"
+}
+```
+</ResponseExample>
+
+### Implementation Notes
+
+- Uses MongoDB aggregation pipeline for efficient retrieval
+- Matches both `sessionId` and `userId` to ensure security
+- Returns only `_id` and `messages` fields (excludes metadata)
+- System messages (from context building) are included in the response
+
+---
+
+## DELETE /api/user/chat/:sessionId
+
+Delete a specific chat session and all its messages.
+
+### Authentication
+
+Requires JWT authentication token in the Authorization header.
+
+### URL Parameters
+
+<ParamField path="sessionId" type="string" required>
+  The unique session identifier to delete.
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the deletion was successful.
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Confirmation message.
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "message": "Chat deleted successfully"
+}
+```
+
+### Error Responses
+
+<ResponseExample>
+```json 400 Bad Request
+{
+  "success": false,
+  "message": "Missing sessionId"
+}
+```
+
+```json 404 Not Found
+{
+  "success": false,
+  "message": "Chat not found"
+}
+```
+
+```json 500 Internal Server Error
+{
+  "success": false,
+  "message": "Error while deleting conversation"
+}
+```
+</ResponseExample>
+
+### Implementation Notes
+
+- Uses `findOneAndDelete` with both `sessionId` and `userId` for security
+- Permanently removes the session and all associated messages
+- Returns 404 if the session doesn't exist or doesn't belong to the user
+- Cannot be undone - ensure user confirmation before deletion
+
+---
+
+## POST /api/user/previous-chats
+
+Retrieve a list of all chat sessions for the authenticated user.
+
+### Authentication
+
+Requires JWT authentication token in the Authorization header.
+
+### Request Body
+
+No request body required.
+
+### Response
+
+<ResponseField name="chats" type="array">
+  Array of chat session summaries.
+  <Expandable title="Chat Summary Object">
+    <ResponseField name="_id" type="string">
+      MongoDB document ID.
+    </ResponseField>
+    <ResponseField name="sessionId" type="string">
+      Unique session identifier (UUID v4).
+    </ResponseField>
+    <ResponseField name="messages" type="string">
+      The first user message in the conversation (used as preview/title).
+    </ResponseField>
+    <ResponseField name="updatedAt" type="string">
+      Last update timestamp formatted as a date string (e.g., "Mon Mar 04 2026").
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "chats": [
+    {
+      "_id": "507f1f77bcf86cd799439011",
+      "sessionId": "a3f2c1b0-4e5d-6f7g-8h9i-0j1k2l3m4n5o",
+      "messages": "How do I implement authentication in Express?",
+      "updatedAt": "Mon Mar 04 2026"
+    },
+    {
+      "_id": "507f191e810c19729de860ea",
+      "sessionId": "b4g3d2c1-5f6e-7g8h-9i0j-1k2l3m4n5o6p",
+      "messages": "What should I focus on studying next?",
+      "updatedAt": "Sun Mar 03 2026"
+    },
+    {
+      "_id": "507f1f77bcf86cd799439012",
+      "sessionId": "c5h4e3d2-6g7f-8h9i-0j1k-2l3m4n5o6p7q",
+      "messages": "Explain React hooks",
+      "updatedAt": "Sat Mar 02 2026"
+    }
+  ]
+}
+```
+
+### Error Responses
+
+<ResponseExample>
+```json 500 Internal Server Error
+{
+  "success": false,
+  "message": "Error while fetching conversations"
+}
+```
+</ResponseExample>
+
+### Implementation Notes
+
+- Retrieves all sessions for the authenticated user
+- Selects only `sessionId`, `messages`, and `updatedAt` fields
+- Returns chats in reverse order (most recent first)
+- Uses the first message content as a preview/summary
+- Date is formatted using JavaScript's `toDateString()` method
+- Empty array is returned if user has no chat sessions
+
+---
+
+## Data Model
+
+### ChatSession Schema
+
+Chat sessions are stored in MongoDB with the following structure:
+
+```javascript
+{
+  userId: String,              // Reference to User model
+  sessionId: String,            // UUID v4 identifier
+  messages: [
+    {
+      role: String,             // 'user', 'assistant', or 'system'
+      content: String           // Message text
+    }
+  ],
+  createdAt: Date,              // Auto-generated timestamp
+  updatedAt: Date               // Auto-updated timestamp
+}
+```
+
+### Indexes
+
+- Composite index on `(userId, sessionId)` for efficient lookups
+- Sessions are user-scoped for security and privacy
+
+---
+
+## Usage Patterns
+
+### Building a Chat History UI
+
+1. **List View**: Use `POST /api/user/previous-chats` to display all conversations
+   - Show the first message as the conversation title
+   - Display the `updatedAt` timestamp
+   - Use `sessionId` as the navigation key
+
+2. **Detail View**: Use `GET /api/user/chat/:sessionId` to show full conversation
+   - Render all messages in chronological order
+   - Filter out `system` role messages if desired (they're internal context)
+
+3. **Deletion**: Use `DELETE /api/user/chat/:sessionId` with user confirmation
+   - Show a confirmation dialog before deletion
+   - Redirect to chat list after successful deletion
+
+### Continuing a Conversation
+
+To continue an existing conversation:
+
+1. Get the `sessionId` from the chat list or URL
+2. Make a new `POST /api/user/ai-chat` request with the `sessionId` in the body
+3. The AI will load the last 20 messages from the session for context
+4. The response includes the updated conversation history
+
+### Session Lifecycle
+
+1. **Creation**: Sessions are created automatically when a user sends their first message without a `sessionId`
+2. **Updates**: Sessions are updated each time a message is sent (user) or received (assistant)
+3. **Persistence**: Sessions persist indefinitely until explicitly deleted
+4. **Security**: Sessions are always filtered by `userId` to prevent cross-user access
+
+## Best Practices
+
+1. **Pagination**: For users with many chats, implement client-side pagination
+2. **Caching**: Cache the chat list and individual sessions to reduce API calls
+3. **Optimistic UI**: Update the UI immediately when sending messages, then sync with the server response
+4. **Error Handling**: Always handle 404 errors gracefully (session may have been deleted)
+5. **Confirmation**: Require explicit user confirmation before deleting sessions
+
+## Security
+
+- All endpoints require authentication via JWT token
+- Sessions are strictly user-scoped (userId is always matched)
+- Attempting to access another user's session returns 404 (not 403) to avoid information leakage
+- Session IDs are UUIDs, making them difficult to guess
+
+## Performance Considerations
+
+- The chat list endpoint fetches all user sessions - consider pagination for power users
+- Individual session retrieval uses MongoDB aggregation for efficiency
+- Messages are not paginated within a session - very long sessions may cause performance issues
+- Consider implementing a message limit per session (e.g., 1000 messages)
+
+## Related Endpoints
+
+- [AI Chatbot](/api/ai/chatbot) - Send messages and create new sessions
+- [Learning Roadmaps](/api/ai/roadmap) - AI-generated learning paths

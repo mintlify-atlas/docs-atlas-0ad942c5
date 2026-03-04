@@ -1,0 +1,141 @@
+---
+title: "Educator Dashboard"
+description: "Get comprehensive dashboard data for educators"
+---
+
+<api-endpoint method="GET" path="/api/educator/dashboard" />
+
+Retrieve comprehensive dashboard statistics for an educator, including total earnings, enrolled students, and course count. This endpoint aggregates data from courses, purchases, and student information.
+
+### Authentication
+
+<api-auth>
+  <api-auth-item type="bearer" description="Clerk authentication token required" />
+  <api-auth-item type="role" description="Educator role required (enforced by protectEducator middleware)" />
+</api-auth>
+
+### Response
+
+<api-response status="200">
+  <api-response-item name="success" type="boolean">
+    Indicates if the request was successful
+  </api-response-item>
+  <api-response-item name="dashboardData" type="object">
+    Aggregated dashboard statistics
+  </api-response-item>
+  <api-response-item name="dashboardData.totalEarnings" type="number">
+    Total earnings from all completed purchases across all courses
+  </api-response-item>
+  <api-response-item name="dashboardData.totalCourses" type="number">
+    Total number of courses created by the educator
+  </api-response-item>
+  <api-response-item name="dashboardData.enrolledStudentsData" type="array">
+    Array of enrolled student objects with course information
+  </api-response-item>
+  <api-response-item name="dashboardData.enrolledStudentsData[].courseTitle" type="string">
+    Title of the course the student is enrolled in
+  </api-response-item>
+  <api-response-item name="dashboardData.enrolledStudentsData[].student" type="object">
+    Student information object
+  </api-response-item>
+  <api-response-item name="dashboardData.enrolledStudentsData[].student.name" type="string">
+    Student's name
+  </api-response-item>
+  <api-response-item name="dashboardData.enrolledStudentsData[].student.imageUrl" type="string">
+    Student's profile image URL
+  </api-response-item>
+</api-response>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "dashboardData": {
+    "totalEarnings": 4567.89,
+    "totalCourses": 5,
+    "enrolledStudentsData": [
+      {
+        "courseTitle": "Complete React Development Course",
+        "student": {
+          "_id": "user_123abc",
+          "name": "John Smith",
+          "imageUrl": "https://example.com/avatars/john.jpg"
+        }
+      },
+      {
+        "courseTitle": "Complete React Development Course",
+        "student": {
+          "_id": "user_456def",
+          "name": "Jane Doe",
+          "imageUrl": "https://example.com/avatars/jane.jpg"
+        }
+      },
+      {
+        "courseTitle": "Advanced Node.js Course",
+        "student": {
+          "_id": "user_123abc",
+          "name": "John Smith",
+          "imageUrl": "https://example.com/avatars/john.jpg"
+        }
+      },
+      {
+        "courseTitle": "TypeScript Masterclass",
+        "student": {
+          "_id": "user_789ghi",
+          "name": "Bob Wilson",
+          "imageUrl": "https://example.com/avatars/bob.jpg"
+        }
+      }
+    ]
+  }
+}
+```
+
+### Data Aggregation Process
+
+1. **Fetch Educator Courses**: Retrieves all courses created by the authenticated educator
+2. **Calculate Total Courses**: Counts the number of courses
+3. **Calculate Total Earnings**: 
+   - Finds all completed purchases for the educator's courses
+   - Sums the `amount` field from all purchases
+4. **Collect Enrolled Students**:
+   - Extracts all student IDs from course enrollment lists
+   - Fetches student details (name and image) from the User collection
+   - Maps students to their enrolled courses
+   - Returns array with course title and student information
+
+### Notes
+
+- Only **completed** purchases are included in earnings calculations
+- Students enrolled in multiple courses will appear multiple times in `enrolledStudentsData`
+- The same student can appear under different courses
+- Student data includes only `name` and `imageUrl` fields for privacy
+- If a student's data cannot be found, they are filtered out from the results
+
+### Use Cases
+
+- Display educator dashboard overview
+- Show total revenue and course statistics
+- List all students across all courses
+- Identify which courses have the most enrollments
+
+### Error Response
+
+```json
+{
+  "success": false,
+  "message": "An unexpected error occurred"
+}
+```
+
+### Performance Considerations
+
+- The endpoint performs multiple database queries:
+  - Course query (filtered by educatorId)
+  - Purchase query (filtered by courseIds with completed status)
+  - User query (batch fetch for all enrolled students)
+- Results are optimized using:
+  - Object mapping for efficient student lookups
+  - `flatMap` for collecting students across courses
+  - Filtering to remove invalid student references

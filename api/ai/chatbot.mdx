@@ -1,0 +1,194 @@
+---
+title: AI Chatbot
+description: Interact with the SkillRise AI Assistant for personalized learning support
+---
+
+## Overview
+
+The AI Chatbot endpoint provides students with a personalized learning companion powered by Groq AI. The assistant leverages the student's course enrollment, progress data, and quiz performance to provide contextual guidance and study recommendations.
+
+## POST /api/user/ai-chat
+
+Send a message to the AI assistant and receive a personalized response based on your learning context.
+
+### Authentication
+
+Requires JWT authentication token in the Authorization header.
+
+### Request Body
+
+<ParamField body="content" type="string" required>
+  The user's message to the AI assistant. Must be a non-empty string.
+</ParamField>
+
+<ParamField body="sessionId" type="string">
+  Optional session ID to continue an existing conversation. If not provided, a new session will be created.
+</ParamField>
+
+### Request Example
+
+```json
+{
+  "content": "What should I focus on studying next?",
+  "sessionId": "a3f2c1b0-4e5d-6f7g-8h9i-0j1k2l3m4n5o"
+}
+```
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the request was successful.
+</ResponseField>
+
+<ResponseField name="activeSessionId" type="string">
+  The session ID for this conversation. Use this to continue the conversation in subsequent requests.
+</ResponseField>
+
+<ResponseField name="response" type="string">
+  The AI assistant's response to the user's message.
+</ResponseField>
+
+<ResponseField name="conversationHistory" type="array">
+  Complete conversation history including all user and assistant messages.
+  <Expandable title="Message Object">
+    <ResponseField name="role" type="string">
+      Either "user" or "assistant".
+    </ResponseField>
+    <ResponseField name="content" type="string">
+      The message content.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "activeSessionId": "a3f2c1b0-4e5d-6f7g-8h9i-0j1k2l3m4n5o",
+  "response": "Based on your recent quiz results, I recommend focusing on the authentication module in your Web Development course. You scored 60% on that chapter, which indicates it needs review. Specifically, work on understanding JWT tokens and OAuth flows.",
+  "conversationHistory": [
+    {
+      "role": "user",
+      "content": "What should I focus on studying next?"
+    },
+    {
+      "role": "assistant",
+      "content": "Based on your recent quiz results, I recommend focusing on the authentication module in your Web Development course. You scored 60% on that chapter, which indicates it needs review. Specifically, work on understanding JWT tokens and OAuth flows."
+    }
+  ]
+}
+```
+
+### Error Responses
+
+<ResponseExample>
+```json 400 Bad Request
+{
+  "success": false,
+  "message": "Missing message"
+}
+```
+
+```json 500 Internal Server Error
+{
+  "success": false,
+  "message": "Failed to generate AI response."
+}
+```
+</ResponseExample>
+
+## How It Works
+
+### Personalized Context
+
+The AI assistant builds a comprehensive learning context for each user that includes:
+
+- **Student Profile**: Name and enrolled courses
+- **Course Progress**: Completion percentage and lecture tracking for each course
+- **Quiz Performance**: Recent quiz results with scores, performance levels (Needs Review, On Track, Mastered), and AI-generated study recommendations
+- **Learning Patterns**: Analysis of strengths and areas needing improvement
+
+### System Prompt
+
+The assistant is configured with the following capabilities:
+
+- Help with course content and technical learning questions
+- Provide study guidance based on progress data
+- Offer personalized recommendations using quiz performance
+- Proactively suggest review for topics marked "Needs Review"
+- Maintain a concise, encouraging, and educational tone
+
+### Groq AI Integration
+
+The chatbot uses Groq's high-performance AI inference with the following configuration:
+
+- **Model**: `openai/gpt-oss-120b` - A 120B parameter open-source model
+- **Temperature**: 0.7 - Balanced between creativity and consistency
+- **Max Tokens**: 5000 - Supports detailed explanations
+- **Top P**: 1.0 - Full probability mass for response generation
+- **Streaming**: Disabled - Returns complete responses
+
+### Context Management
+
+- Conversation history is limited to the last 20 messages for optimal performance
+- System prompt is regenerated on each request to ensure context freshness
+- User data is fetched in real-time to reflect current progress
+- Session IDs are auto-generated using UUID v4
+
+### Data Sources
+
+The assistant pulls data from:
+
+- `User` model: Name, enrolled courses
+- `CourseProgress` model: Lecture completion tracking
+- `QuizResult` model: Recent quiz scores and AI recommendations
+- `Course` model: Course titles, chapters, and content structure
+
+## Implementation Details
+
+### Request Validation
+
+Requests are validated using Zod schema:
+
+```javascript
+const AiChatBodySchema = z.object({
+  content: z.string().trim().min(1),
+  sessionId: z.string().optional(),
+})
+```
+
+### Session Management
+
+- Sessions are stored in MongoDB using the `ChatSession` model
+- Each session is tied to a specific user (userId ensures ownership)
+- New sessions are created automatically with UUID v4 identifiers
+- Existing sessions are retrieved using both sessionId and userId for security
+
+### Context Building
+
+The `buildUserContext()` function aggregates:
+
+1. User's enrolled courses with populated course details
+2. Progress records for all enrolled courses
+3. Recent quiz results (limited to last 20)
+4. Calculated completion percentages
+5. Chapter and lecture information
+6. Latest AI study recommendations from quiz results
+
+## Best Practices
+
+1. **Session Continuity**: Always include the `activeSessionId` from previous responses to maintain conversation context
+2. **Specific Questions**: The AI performs best with specific questions about courses, topics, or study strategies
+3. **Learning Context**: The assistant's recommendations improve as students complete more quizzes and courses
+4. **Fresh Data**: User context is rebuilt on every request to ensure recommendations reflect current progress
+
+## Rate Limiting
+
+Consider implementing rate limiting on the client side to prevent excessive API calls to Groq's service.
+
+## Related Endpoints
+
+- [Get Chat Session](/api/ai/chat-sessions#get-chat-session) - Retrieve a specific conversation
+- [Delete Chat Session](/api/ai/chat-sessions#delete-chat-session) - Remove a conversation
+- [Previous Chats](/api/ai/chat-sessions#list-previous-chats) - List all user conversations
